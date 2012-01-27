@@ -133,17 +133,6 @@ def dot(result):					# Generic output operator
 
     return None
 
-# Colon definition
-#
-def colon() :
-    global input
-
-    name  = input[0]					# Pull the definition out of the input.
-    body  = input[1:input.index(";")]
-    input = input[len(body)+2:]
-
-    ops[name] = { "op": lambda : inner(body), "signature": [] }
-
 
 def dotdot() :
     op = ops[input.pop(0)]
@@ -195,7 +184,7 @@ def mcode():     outer(macro(input.pop(0)))
 # Import python code and define the new operators.
 #
 def defopr(name, func, signature) :
-    ops[name] = { "op" : func, "signature": signature }
+    ops[name] = { "op" : func, "imm": 0, "signature": signature }
 
 __builtins__.num    = num	# Cast functions must be available in the new module
 __builtins__.any    = any	# so stuff them in __builtins__
@@ -203,33 +192,6 @@ __builtins__.chr    = chr
 __builtins__.defopr = defopr
 
 def pcode(): mod = __import__(input.pop(0)).init()
-
-ops = { 
-    "abs":     	{ "op": abs,		"signature": [num] },
-    "sin":     	{ "op": numpy.sin,	"signature": [num] },
-    "mean":    	{ "op": numpy.mean,	"signature": [num] },
-    "median":  	{ "op": numpy.median,	"signature": [num]},
-    "+": 	{ "op": operator.add,	"signature": [num, num] },
-    "-": 	{ "op": operator.sub,	"signature": [num, num] },
-    "*": 	{ "op": operator.mul,	"signature": [num, num] },
-    "/": 	{ "op": operator.div,	"signature": [num, num] },
-    "**": 	{ "op": operator.pow,	"signature": [num, num] },
-
-    "dup":	{ "op": dup,            "signature": [any] },
-    "rot":	{ "op": rot,            "signature": [any, any, any] },
-    "drop":	{ "op": drop,           "signature": [any] },
-    "swap":	{ "op": swap,           "signature": [any, any] },
-
-    ".":	{ "op": dot,            "signature": [any] },
-    "..":       { "op": dotdot,		"signature": [] },
-
-    "!":	{ "op": store,		"signature": [any, chr] },
-    "@":	{ "op": fetch,		"signature": [chr] },
-
-    "\\":       { "op":  mcode,		"signature": [] },
-    ".py":      { "op": pcode,		"signature": [] },
-    ":": 	{ "op": colon,		"signature": [] },
-}
 
 
 # Run a python def off the stack
@@ -245,29 +207,50 @@ def pydef(dentry):
     if ( result != None ) :
 	stack.append(result)
 
-# The inner loop - threads the words of a colon def, unlike 4th this does late binding by
-# looking up strings in the ops table.  This makes the definition of "inner" and ":"
-# simpler, as there is no code pointer and ":" just has to compile a list of strings.  But 
-# there are also no flow control words.
+ip   = 0
+code = []
+
+# The inner loop - threads the words of a colon def
 #
-ip = 0
-
-def inner(code):
+def inner(text):
     global ip 
+    global code
 
-    saved = ip
+    ipsave = ip
+    cdsave = code
 
-    ip = 0
+    ip   = 0
+    code = text
+
     while ( ip < len(code) ):
-	if code[ip] in ops :		# Lookup operator, convert args and call
-	    pydef(ops[code[ip]])
-	else:
-	    stack.append(code[ip])
+	pydef(code[ip])
 
-	ip = ip + 1
+	ip += 1
 
-    ip = saved
+    ip   = ipsave
+    code = cdsave
 
+
+def literal():
+    global ip
+
+    ip += 1
+    stack.append(code[ip])
+
+lit = { "op": literal, "signature": [] }
+
+def colon():
+    global name, body, state 
+
+    name  = input.pop(0)
+    body  = []
+    state = 1
+
+def semi():
+    global state
+
+    ops[name] = { "op": lambda : inner(body), "imm": 0, "signature": [] }
+    state     = 0
 
 # The outer loop - consumes input and corrosponds to 4th's evaluate
 #
@@ -278,18 +261,57 @@ def outer(Input):
     input = Input
 
     while ( len(input) ) :
-	arg = input.pop(0)
+	word = input.pop(0)
 
-	if arg in ops :		# Lookup operator, convert args and call
-	    pydef(ops[arg])
+	if word in ops:		# Lookup word
+	    if ( state and not ops[word]["imm"] ):
+		body.append(ops[word])
+	    else:
+		pydef(ops[word])
 	else:
-	    stack.append(arg)
+	    if ( state ):
+		body.append(lit)
+		body.append(word)
+	    else:
+		stack.append(word)
 
     input = saved
+
+ops = { 
+    "abs":     	{ "op": abs,		"imm" : 0, "signature": [num] },
+    "sin":     	{ "op": numpy.sin,	"imm" : 0, "signature": [num] },
+    "mean":    	{ "op": numpy.mean,	"imm" : 0, "signature": [num] },
+    "median":  	{ "op": numpy.median,	"imm" : 0, "signature": [num]},
+    "+": 	{ "op": operator.add,	"imm" : 0, "signature": [num, num] },
+    "-": 	{ "op": operator.sub,	"imm" : 0, "signature": [num, num] },
+    "*": 	{ "op": operator.mul,	"imm" : 0, "signature": [num, num] },
+    "/": 	{ "op": operator.div,	"imm" : 0, "signature": [num, num] },
+    "**": 	{ "op": operator.pow,	"imm" : 0, "signature": [num, num] },
+
+    "dup":	{ "op": dup,            "imm" : 0, "signature": [any] },
+    "rot":	{ "op": rot,            "imm" : 0, "signature": [any, any, any] },
+    "drop":	{ "op": drop,           "imm" : 0, "signature": [any] },
+    "swap":	{ "op": swap,           "imm" : 0, "signature": [any, any] },
+
+    ".":	{ "op": dot,            "imm" : 0, "signature": [any] },
+    "..":       { "op": dotdot,		"imm" : 0, "signature": [] },
+
+    "!":	{ "op": store,		"imm" : 0, "signature": [any, chr] },
+    "@":	{ "op": fetch,		"imm" : 0, "signature": [chr] },
+
+    "\\":       { "op":  mcode,		"imm" : 0, "signature": [] },
+    ".py":      { "op": pcode,		"imm" : 0, "signature": [] },
+    ":": 	{ "op": colon,		"imm" : 0, "signature": [] },
+    ";": 	{ "op": semi,		"imm" : 1, "signature": [] },
+}
 
 
 # Main script action
 #
+name  = ""	# Colon definition pieces.
+body  = []
+state = 0
+
 input = []
 stack = []
 
