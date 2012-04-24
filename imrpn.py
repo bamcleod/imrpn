@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-
-
+#
 import os
 import sys
 
@@ -63,7 +62,7 @@ class xpa(object):
 varib = {}
 
 def store(value, name): varib[name] = value
-def fetch(name):        return varib[name]
+def fetch(name): return varib[name]
 	
 
 # Standard stack ops
@@ -316,10 +315,7 @@ state = 0
 input = []
 stack = []
 
-start = [".imrpn"] 			# Read in any startup files.
-
-if ( os.getcwd() != os.getenv("HOME") ) :
-     start = [os.path.join(os.getenv("HOME"), ".imrpn")] + start
+start = sorted(set([os.path.join(os.getenv("HOME"), ".imrpn"), os.path.join(os.getcwd(), ".imrpn")]))
 
 for file in start :
      if ( os.path.exists(file) ) : outer(macro(file))
