@@ -179,7 +179,12 @@ def num(x) :
 
 # Run a file as input.  Can be used to import ":" definitions
 #
-def macro(file): return re.sub(re.compile("#.*\n" ) ,"" ,  open(file).read()).split()
+def macro(file):
+	fp = open(file)
+	data = re.sub(re.compile("#.*\n" ) ,"" ,  fp.read()).split()
+	fp.close()
+	return data
+
 def mcode():     outer(macro(input.pop(0)))
 
 
@@ -280,13 +285,20 @@ def outer(Input):
     input = saved
 
 def pyslice(data, s):
-	print s
-	sl = []
+	sx = []
 	for dim in s.split(",") :
-	    sl.append(slice(*[int(x) for x in dim.split(":")]))
+	    ss = []
+	    for x in dim.split(":") :
+		if x == '':
+		    ss.append(None)
+		else :
+		    ss.append(int(x))
+
+            sx.append(slice(*ss))
+
+	print sx
 	    
-	print sl
-	return data[sl]
+	return data[sx]
 
 ops = { 
     "abs":     	{ "op": abs,		"imm" : 0, "signature": [num] },
