@@ -69,18 +69,18 @@ def fetch(name):        return varib[name]
 # Standard stack ops
 #
 def dup(x):
-    stack.append(x)
-    stack.append(x)
+    stak.append(x)
+    stak.append(x)
 
 def rot(x, y, z):
-    stack.append(z)
-    stack.append(x)
-    stack.append(y)
+    stak.append(z)
+    stak.append(x)
+    stak.append(y)
 
 def drop(x): return None
 def swap(x, y):
-    stack.append(y)
-    stack.append(x)
+    stak.append(y)
+    stak.append(x)
 
 def extparse(file, deffile="", defextn=0):
     x = file.split(",")
@@ -97,7 +97,7 @@ def dot(result):					# Generic output operator
     if ( type(result) == str and result[:4] == "ds9:" ):# Maybe push the result to ds9?
 	    (target, frame) = extparse(result[4:], "ds9")
 
-	    result = num(stack.pop())
+	    result = num(stak.pop())
 
 	    try:
 		if ( frame != 0 ) :
@@ -135,9 +135,18 @@ def dot(result):					# Generic output operator
     return None
 
 
+def xdotdot(op):
+    while ( len(stak) and len(stak) >= len(op["signature"]) ): pydef(op)
+
 def dotdot() :
-    op = ops[input.pop(0)]
-    while ( len(stack) and len(stack) >= len(op["signature"]) ): pydef(op)
+    if ( state ):
+	body.append(ops["(lit)"])
+	body.append(ops[input.pop(0)])
+	body.append(ops["(dotdot)"])
+    else:
+	stak.append(ops[input.pop(0)])
+	pydef(ops["(dotdot)"])
+
  
 def any(x): return     x
 def chr(x): return str(x)
@@ -184,7 +193,7 @@ def mcode():     outer(macro(input.pop(0)))
 
 # Import python code and define the new operators.
 #
-def defopr(name, func, signature) :
+def defop(name, func, signature) :
     ops[name] = { "op" : func, "imm": 0, "signature": signature }
 
 __builtins__.num    = num	# Cast functions must be available in the new module
@@ -201,15 +210,12 @@ def pydef(dentry):
     operands = []
     for (x, filter) in zip(range(-len(dentry["signature"]), 0, 1)
 			 , dentry["signature"]):
-	operands.append(filter(stack.pop(x)))
+	operands.append(filter(stak.pop(x)))
 
     result = dentry["op"](*operands)
 
     if ( result != None ) :
-	stack.append(result)
-
-ip   = 0
-code = []
+	stak.append(result)
 
 # The inner loop - threads the words of a colon def
 #
@@ -225,20 +231,17 @@ def inner(text):
 
     while ( ip < len(code) ):
 	pydef(code[ip])
-
 	ip += 1
 
     ip   = ipsave
     code = cdsave
 
 
-def literal():
+def lit():
     global ip
 
     ip += 1
-    stack.append(code[ip])
-
-lit = { "op": literal, "signature": [] }
+    stak.append(code[ip])
 
 def colon():
     global name, body, state 
@@ -250,7 +253,9 @@ def colon():
 def semi():
     global state
 
-    ops[name] = { "op": lambda : inner(body), "imm": 0, "signature": [] }
+    text = list(body)
+
+    ops[name] = { "op": lambda : inner(list(text)), "imm": 0, "signature": [] }
     state     = 0
 
 # The outer loop - consumes input and corrosponds to 4th's evaluate
@@ -271,12 +276,47 @@ def outer(Input):
 		pydef(ops[word])
 	else:
 	    if ( state ):
-		body.append(lit)
+		body.append(ops["(lit)"])
 		body.append(word)
 	    else:
-		stack.append(word)
+		stak.append(word)
 
     input = saved
+
+
+def xbegin():
+    rtrn.append(ip)
+
+def xloop():
+    body.append(ops["(branch)"])
+    body.append(rtrn.pop())
+
+def xif():
+    body.append(ops["(branch0)"])
+    body.append(0)
+
+    rtrn.append(len(body)-1)
+
+def xelse():
+    body.append(ops["(branch)"])
+    body.append(0)
+    body[rtrn.pop()] = len(body)
+
+    rtrn.append(len(body)-1)
+
+def xthen():
+    body[rtrn.pop()] = len(body)
+
+def xbranch():
+    global ip
+    ip = code[ip]
+
+def xbranch0(x):
+    global ip
+    if x:
+    	ip = code[ip]
+    else:
+    	ip += 1
 
 ops = { 
     "abs":     	{ "op": abs,		"imm" : 0, "signature": [num] },
@@ -295,7 +335,7 @@ ops = {
     "swap":	{ "op": swap,           "imm" : 0, "signature": [any, any] },
 
     ".":	{ "op": dot,            "imm" : 0, "signature": [any] },
-    "..":       { "op": dotdot,		"imm" : 0, "signature": [] },
+    "..":       { "op": dotdot,		"imm" : 1, "signature": [] },
 
     "!":	{ "op": store,		"imm" : 0, "signature": [any, chr] },
     "@":	{ "op": fetch,		"imm" : 0, "signature": [chr] },
@@ -304,7 +344,20 @@ ops = {
     ".py":      { "op": pcode,		"imm" : 0, "signature": [] },
     ":": 	{ "op": colon,		"imm" : 0, "signature": [] },
     ";": 	{ "op": semi,		"imm" : 1, "signature": [] },
+
+    "(lit)": 	{ "op": lit, 		"imm" : 0, "signature": [] },
+    "(dotdot)":	{ "op": xdotdot, 	"imm" : 0, "signature": [any] },
+
+    "if":    	{ "op": xif,            "imm" : 1, "signature": [any] },
+    "then":     { "op": xthen,          "imm" : 1, "signature": [] },
+    "else":     { "op": xelse,          "imm" : 1, "signature": [] },
+    "begin":    { "op": xbegin,         "imm" : 1, "signature": [] },
+    "loop":     { "op": xloop,          "imm" : 1, "signature": [] },
+
+    "(branch)": { "op": lit,            "imm" : 0, "signature": [] },
+    "(branch0)":{ "op": lit,            "imm" : 0, "signature": [] },
 }
+
 
 
 # Main script action
@@ -313,8 +366,12 @@ name  = ""	# Colon definition pieces.
 body  = []
 state = 0
 
-input = []
-stack = []
+ip   = 0	# Colon execution state
+code = []
+
+input = []	# Machine state
+stak  = []
+rtrn  = []
 
 start = [".imrpn"] 			# Read in any startup files.
 
@@ -327,8 +384,9 @@ for file in start :
 if not sys.stdin.isatty() :             # If there is something on stdin, try to read it as FITS
     try:
         sys.stdin = os.fdopen(sys.stdin.fileno(), 'rb', 0)
-        stack.append(pyfits.open(sys.stdin,mode="readonly")[0].data)
+        stak.append(pyfits.open(sys.stdin,mode="readonly")[0].data)
     except IOError:
         sys.stderr.write("Error opening fits from stdin.\n")
 
 outer(sys.argv[1:] + ["..", "."])	# Evaluate the command line & Dump the stack.
+
