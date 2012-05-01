@@ -163,11 +163,13 @@ def num(x) :
 		return pyfits.open(StringIO.StringIO(xpa(target).get("fits", xpa.fp).read())
 				, mode="readonly")[0].data
 
+	(file, extn) = extparse(x)
+	print file, extn
+
+	return pyfits.open(file)[extn].data
+
 	try:
-	    (file, extn) = extparse(x)
-
-	    return pyfits.open(file)[extn].data
-
+		pass
 	except IOError:
 	    print "imrpn: cannot read file: " + x
 	    exit(1)
@@ -277,6 +279,15 @@ def outer(Input):
 
     input = saved
 
+def pyslice(data, s):
+	print s
+	sl = []
+	for dim in s.split(",") :
+	    sl.append(slice(*[int(x) for x in dim.split(":")]))
+	    
+	print sl
+	return data[sl]
+
 ops = { 
     "abs":     	{ "op": abs,		"imm" : 0, "signature": [num] },
     "sin":     	{ "op": numpy.sin,	"imm" : 0, "signature": [num] },
@@ -287,6 +298,7 @@ ops = {
     "*": 	{ "op": operator.mul,	"imm" : 0, "signature": [num, num] },
     "/": 	{ "op": operator.div,	"imm" : 0, "signature": [num, num] },
     "**": 	{ "op": operator.pow,	"imm" : 0, "signature": [num, num] },
+    "[]": 	{ "op": pyslice,	"imm" : 0, "signature": [num, str] },
 
     "dup":	{ "op": dup,            "imm" : 0, "signature": [any] },
     "rot":	{ "op": rot,            "imm" : 0, "signature": [any, any, any] },
