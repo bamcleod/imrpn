@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-
-
+#
 import os
 import sys
 
@@ -63,7 +62,7 @@ class xpa(object):
 varib = {}
 
 def store(value, name): varib[name] = value
-def fetch(name):        return varib[name]
+def fetch(name): return varib[name]
 	
 
 # Standard stack ops
@@ -173,11 +172,12 @@ def num(x) :
 		return pyfits.open(StringIO.StringIO(xpa(target).get("fits", xpa.fp).read())
 				, mode="readonly")[0].data
 
+	(file, extn) = extparse(x)
+
+	return pyfits.open(file)[extn].data
+
 	try:
-	    (file, extn) = extparse(x)
-
-	    return pyfits.open(file)[extn].data
-
+		pass
 	except IOError:
 	    print "imrpn: cannot read file: " + x
 	    exit(1)
@@ -187,13 +187,18 @@ def num(x) :
 
 # Run a file as input.  Can be used to import ":" definitions
 #
-def macro(file): return re.sub(re.compile("#.*\n" ) ,"" ,  open(file).read()).split()
+def macro(file):
+	fp = open(file)
+	data = re.sub(re.compile("#.*\n" ) ,"" ,  fp.read()).split()
+	fp.close()
+	return data
+
 def mcode():     outer(macro(input.pop(0)))
 
 
 # Import python code and define the new operators.
 #
-def defop(name, func, signature) :
+def defopr(name, func, signature) :
     ops[name] = { "op" : func, "imm": 0, "signature": signature }
 
 __builtins__.num    = num	# Cast functions must be available in the new module
@@ -253,7 +258,11 @@ def colon():
 def semi():
     global state
 
+
     text = list(body)
+
+    #for x in text:
+    #	print x
 
     ops[name] = { "op": lambda : inner(list(text)), "imm": 0, "signature": [] }
     state     = 0
@@ -269,12 +278,16 @@ def outer(Input):
     while ( len(input) ) :
 	word = input.pop(0)
 
+	#print "outer ", word
+
 	if word in ops:		# Lookup word
+	    #print "	op"
 	    if ( state and not ops[word]["imm"] ):
 		body.append(ops[word])
 	    else:
 		pydef(ops[word])
 	else:
+	    #print "	lit"
 	    if ( state ):
 		body.append(ops["(lit)"])
 		body.append(word)
@@ -283,24 +296,32 @@ def outer(Input):
 
     input = saved
 
-
 def xbegin():
     rtrn.append(ip)
 
-def xloop():
+def xrepeat():
     body.append(ops["(branch)"])
+    body.append(rtrn.pop())
+
+def xwhile():
+    body.append(ops["not"])
+    body.append(ops["(branch0)"])
+    body.append(rtrn.pop())
+
+def xuntil():
+    body.append(ops["(branch0)"])
     body.append(rtrn.pop())
 
 def xif():
     body.append(ops["(branch0)"])
+    rtrn.append(len(body))
     body.append(0)
 
-    rtrn.append(len(body)-1)
 
 def xelse():
     body.append(ops["(branch)"])
-    body.append(0)
     body[rtrn.pop()] = len(body)
+    body.append(0)
 
     rtrn.append(len(body)-1)
 
@@ -309,14 +330,30 @@ def xthen():
 
 def xbranch():
     global ip
-    ip = code[ip]
+
+    ip = code[ip+1]
 
 def xbranch0(x):
     global ip
-    if x:
+
+    ip += 1
+
+    if not x:
     	ip = code[ip]
-    else:
-    	ip += 1
+
+def pyslice(data, s):
+    sx = []
+    for dim in s.split(",") :
+	ss = []
+	for x in dim.split(":") :
+	    if x == '':
+		ss.append(None)
+	    else :
+		ss.append(int(x))
+
+	sx.append(slice(*ss))
+
+    return data[sx]
 
 ops = { 
     "abs":     	{ "op": abs,		"imm" : 0, "signature": [num] },
@@ -328,6 +365,7 @@ ops = {
     "*": 	{ "op": operator.mul,	"imm" : 0, "signature": [num, num] },
     "/": 	{ "op": operator.div,	"imm" : 0, "signature": [num, num] },
     "**": 	{ "op": operator.pow,	"imm" : 0, "signature": [num, num] },
+    "[]": 	{ "op": pyslice,	"imm" : 0, "signature": [num, str] },
 
     "dup":	{ "op": dup,            "imm" : 0, "signature": [any] },
     "rot":	{ "op": rot,            "imm" : 0, "signature": [any, any, any] },
@@ -348,14 +386,14 @@ ops = {
     "(lit)": 	{ "op": lit, 		"imm" : 0, "signature": [] },
     "(dotdot)":	{ "op": xdotdot, 	"imm" : 0, "signature": [any] },
 
-    "if":    	{ "op": xif,            "imm" : 1, "signature": [any] },
+    "if":    	{ "op": xif,            "imm" : 1, "signature": [] },
     "then":     { "op": xthen,          "imm" : 1, "signature": [] },
     "else":     { "op": xelse,          "imm" : 1, "signature": [] },
     "begin":    { "op": xbegin,         "imm" : 1, "signature": [] },
-    "loop":     { "op": xloop,          "imm" : 1, "signature": [] },
+    "repeat":   { "op": repeat,         "imm" : 1, "signature": [] },
 
-    "(branch)": { "op": lit,            "imm" : 0, "signature": [] },
-    "(branch0)":{ "op": lit,            "imm" : 0, "signature": [] },
+    "(branch)": { "op": xbranch,        "imm" : 0, "signature": [] },
+    "(branch0)":{ "op": xbranch0,       "imm" : 0, "signature": [num] },
 }
 
 
@@ -373,10 +411,7 @@ input = []	# Machine state
 stak  = []
 rtrn  = []
 
-start = [".imrpn"] 			# Read in any startup files.
-
-if ( os.getcwd() != os.getenv("HOME") ) :
-     start = [os.path.join(os.getenv("HOME"), ".imrpn")] + start
+start = sorted(set([os.path.join(os.getenv("HOME"), ".imrpn"), os.path.join(os.getcwd(), ".imrpn")]))
 
 for file in start :
      if ( os.path.exists(file) ) : outer(macro(file))
