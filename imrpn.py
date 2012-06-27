@@ -11,6 +11,13 @@ import operator
 
 import StringIO
 
+import shlex
+
+sys.path.insert(0, os.path.join(os.getenv("HOME"), ".imrpn"))
+
+Home = os.getenv("HOME")
+Conf = os.path.join(Home,  ".imrpn")
+
 class xpa(object):
     def fp():
 	pass
@@ -146,6 +153,7 @@ def dotdot() :
 	stak.append(ops[input.pop(0)])
 	pydef(ops["(dotdot)"])
 
+def python(code) : return eval(code)
  
 def any(x): return     x
 def chr(x): return str(x)
@@ -172,6 +180,14 @@ def num(x) :
 		return pyfits.open(StringIO.StringIO(xpa(target).get("fits", xpa.fp).read())
 				, mode="readonly")[0].data
 
+	if ( x == "stdin" ):
+	    try:
+	        sys.stdin = os.fdopen(sys.stdin.fileno(), 'rb', 0)
+	        stack.append(pyfits.open(sys.stdin,mode="readonly")[0].data)
+	    except IOError:
+	        sys.stderr.write("Error opening fits from stdin.\n")
+
+
 	(file, extn) = extparse(x)
 
 	return pyfits.open(file)[extn].data
@@ -185,7 +201,7 @@ def num(x) :
     return x
 
 
-# Run a file as input.  Can be used to import ":" definitions
+# Run a file as input.  Can be used to read ":" definitions
 #
 def macro(file):
 	fp = open(file)
@@ -198,13 +214,13 @@ def mcode():     outer(macro(input.pop(0)))
 
 # Import python code and define the new operators.
 #
-def defopr(name, func, signature) :
+def rpndef(name, func, signature) :
     ops[name] = { "op" : func, "imm": 0, "signature": signature }
 
 __builtins__.num    = num	# Cast functions must be available in the new module
 __builtins__.any    = any	# so stuff them in __builtins__
 __builtins__.chr    = chr
-__builtins__.defopr = defopr
+__builtins__.rpndef = rpndef
 
 def pcode(): mod = __import__(input.pop(0)).init()
 
@@ -257,7 +273,6 @@ def colon():
 
 def semi():
     global state
-
 
     text = list(body)
 
@@ -341,6 +356,13 @@ def xbranch0(x):
     if not x:
     	ip = code[ip]
 
+
+def array(x):
+    dims = []
+    for i in range(int(x)):
+        dims.append(int(stack.pop()))
+    stack.append(numpy.zeros(dims))
+
 def pyslice(data, s):
     sx = []
     for dim in s.split(",") :
@@ -355,17 +377,31 @@ def pyslice(data, s):
 
     return data[sx]
 
+
 ops = { 
     "abs":     	{ "op": abs,		"imm" : 0, "signature": [num] },
     "sin":     	{ "op": numpy.sin,	"imm" : 0, "signature": [num] },
+    "cos":     	{ "op": numpy.cos,	"imm" : 0, "signature": [num] },
+    "tan":     	{ "op": numpy.tan,	"imm" : 0, "signature": [num] },
+    "arctan":  	{ "op": numpy.arctan,	"imm" : 0, "signature": [num] },
+    "arctan2":  { "op": numpy.arctan2,	"imm" : 0, "signature": [num, num] },
+    "atan":  	{ "op": numpy.arctan,	"imm" : 0, "signature": [num] },
+    "atan2":    { "op": numpy.arctan2,	"imm" : 0, "signature": [num, num] },
+    "sqrt":    	{ "op": numpy.sqrt,	"imm" : 0, "signature": [num] },
+    "log":    	{ "op": numpy.log,	"imm" : 0, "signature": [num] },
+    "log10":   	{ "op": numpy.log10,	"imm" : 0, "signature": [num] },
+    "exp":    	{ "op": numpy.exp,	"imm" : 0, "signature": [num] },
     "mean":    	{ "op": numpy.mean,	"imm" : 0, "signature": [num] },
     "median":  	{ "op": numpy.median,	"imm" : 0, "signature": [num]},
+    "normal":  	{ "op": numpy.random.normal,	"imm" : 0, "signature": [num, num]},
     "+": 	{ "op": operator.add,	"imm" : 0, "signature": [num, num] },
     "-": 	{ "op": operator.sub,	"imm" : 0, "signature": [num, num] },
     "*": 	{ "op": operator.mul,	"imm" : 0, "signature": [num, num] },
     "/": 	{ "op": operator.div,	"imm" : 0, "signature": [num, num] },
     "**": 	{ "op": operator.pow,	"imm" : 0, "signature": [num, num] },
+    "^": 	{ "op": operator.pow,	"imm" : 0, "signature": [num, num] },
     "[]": 	{ "op": pyslice,	"imm" : 0, "signature": [num, str] },
+    "array":    { "op": array,  	"imm" : 0, "signature": [num] },
 
     "dup":	{ "op": dup,            "imm" : 0, "signature": [any] },
     "rot":	{ "op": rot,            "imm" : 0, "signature": [any, any, any] },
@@ -379,6 +415,7 @@ ops = {
     "@":	{ "op": fetch,		"imm" : 0, "signature": [chr] },
 
     "\\":       { "op":  mcode,		"imm" : 0, "signature": [] },
+    "python":   { "op": python,		"imm" : 0, "signature": [str] },
     ".py":      { "op": pcode,		"imm" : 0, "signature": [] },
     ":": 	{ "op": colon,		"imm" : 0, "signature": [] },
     ";": 	{ "op": semi,		"imm" : 1, "signature": [] },
@@ -411,17 +448,23 @@ input = []	# Machine state
 stak  = []
 rtrn  = []
 
-start = sorted(set([os.path.join(os.getenv("HOME"), ".imrpn"), os.path.join(os.getcwd(), ".imrpn")]))
+outer(shlex.split("""
+	: e	numpy.e  python ;
+	: pi	numpy.pi python	;
+	"""))
+
+start = sorted(set([os.path.join(Home, ".imrpn")
+	          , os.path.join(Home, ".imrpn", "imrpn.rc")
+		  , os.path.join(os.getcwd(), ".imrpn")]))
+
+
+try : 
+    imports = __import__("imrpn").init()
+except:
+    pass
 
 for file in start :
-     if ( os.path.exists(file) ) : outer(macro(file))
-
-if not sys.stdin.isatty() :             # If there is something on stdin, try to read it as FITS
-    try:
-        sys.stdin = os.fdopen(sys.stdin.fileno(), 'rb', 0)
-        stak.append(pyfits.open(sys.stdin,mode="readonly")[0].data)
-    except IOError:
-        sys.stderr.write("Error opening fits from stdin.\n")
+     if ( os.path.exists(file) ) and os.path.isfile(file) : outer(macro(file))
 
 outer(sys.argv[1:] + ["..", "."])	# Evaluate the command line & Dump the stack.
 
