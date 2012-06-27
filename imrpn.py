@@ -312,15 +312,14 @@ def outer(Input):
     input = saved
 
 def xbegin():
-    rtrn.append(ip)
+    rtrn.append(ip+1)
 
 def xrepeat():
     body.append(ops["(branch)"])
     body.append(rtrn.pop())
 
 def xwhile():
-    body.append(ops["not"])
-    body.append(ops["(branch0)"])
+    body.append(ops["(branch1)"])
     body.append(rtrn.pop())
 
 def xuntil():
@@ -348,12 +347,20 @@ def xbranch():
 
     ip = code[ip+1]
 
-def xbranch0(x):
+def xbranch0():
     global ip
 
     ip += 1
 
-    if not x:
+    if not stak[0]:
+    	ip = code[ip]
+
+def xbranch1():
+    global ip
+
+    ip += 1
+
+    if stak[0]:
     	ip = code[ip]
 
 
@@ -403,6 +410,10 @@ ops = {
     "[]": 	{ "op": pyslice,	"imm" : 0, "signature": [num, str] },
     "array":    { "op": array,  	"imm" : 0, "signature": [num] },
 
+    "and": 	{ "op": operator.and_,	"imm" : 0, "signature": [num, num] },
+    "or": 	{ "op": operator.or_,	"imm" : 0, "signature": [num, num] },
+    "not": 	{ "op": operator.not_,	"imm" : 0, "signature": [num] },
+
     "dup":	{ "op": dup,            "imm" : 0, "signature": [any] },
     "rot":	{ "op": rot,            "imm" : 0, "signature": [any, any, any] },
     "drop":	{ "op": drop,           "imm" : 0, "signature": [any] },
@@ -427,10 +438,13 @@ ops = {
     "then":     { "op": xthen,          "imm" : 1, "signature": [] },
     "else":     { "op": xelse,          "imm" : 1, "signature": [] },
     "begin":    { "op": xbegin,         "imm" : 1, "signature": [] },
-    "repeat":   { "op": repeat,         "imm" : 1, "signature": [] },
+    "repeat":   { "op": xrepeat,        "imm" : 1, "signature": [] },
+    "while":    { "op": xwhile,         "imm" : 1, "signature": [] },
+    "until":    { "op": xuntil,         "imm" : 1, "signature": [] },
 
     "(branch)": { "op": xbranch,        "imm" : 0, "signature": [] },
-    "(branch0)":{ "op": xbranch0,       "imm" : 0, "signature": [num] },
+    "(branch0)":{ "op": xbranch0,       "imm" : 0, "signature": [] },
+    "(branch1)":{ "op": xbranch1,       "imm" : 0, "signature": [] },
 }
 
 
