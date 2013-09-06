@@ -38,7 +38,7 @@ Test() {
     if [ x"$1" = "x!" ] ; then Expect=Fail;  shift
     fi
 
-    Title=$1; shift
+    Title=$*
     TestsRun=`expr $TestsRun + 1`
 
     printf "%6d	%-52s" 	$TestsRun "$Title" 1>&2
@@ -63,8 +63,16 @@ TestCleanUp() {
     fi
     printf "	$Result	%7.3f\n" $Elapse 1>&2
 
-    if [ $Result = Fail -a $ExitOnFail = 1 ] ; then
-	exit 1
+    if [ $Result = Fail ] ; then
+	if [ "$xy" = 1 ] ; then
+	    echo "	:$x:"
+	    echo "	:$y:"
+	    echo
+	fi
+
+	if [ $ExitOnFail = 1 ] ; then
+	    exit 1
+	fi
     fi
 }
 
@@ -72,16 +80,13 @@ Fail() {  TestCleanUp Fail; }
 Pass() {  TestCleanUp Pass; }
 
 CompareArgs() {
+    xy=1
     while [ $# -ge 2 ] ; do
 	x=$1
 	y=$2
 	shift; shift
 
 	if [ "$x" != "$y" ] ; then
-	    echo 	> /dev/tty
-	    echo ":$x:"	> /dev/tty
-	    echo ":$y:"	> /dev/tty
-
 	    Fail; return 1
 	fi
     done
@@ -90,16 +95,13 @@ CompareArgs() {
 }
 
 CompareEval() {
+    xy=1
     while [ $# -ge 2 ] ; do
 	x=`$1`
 	y=$2
 	shift; shift
 
 	if [ "$x" != "$y" ] ; then
-	    echo 	> /dev/tty
-	    echo ":$x:"	> /dev/tty
-	    echo ":$y:"	> /dev/tty
-
 	    Fail; return 1
 	fi
     done
@@ -108,12 +110,14 @@ CompareEval() {
 }
 
 CompareFiles() {
+    xy=0
     if cmp "$1" "$2" ; then 	Pass; return 0
     else 		    	Fail; return 1
     fi
 }
 
 DiffFiles() {
+  xy=0
   while [ $# != 0 ] ; do
     if diff "$1" "$2" ; then 	Pass; return 0
     else 			Fail; return 1

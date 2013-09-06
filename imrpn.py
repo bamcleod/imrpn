@@ -127,7 +127,7 @@ def dot(result):					# Generic output operator
 	    return None
 
     if len(numpy.shape(result)) == 0: 			# Just a scalar
-	print result
+	print result,
 
 	return None
 
@@ -183,7 +183,7 @@ def num(x) :
 	if ( x == "stdin" ):
 	    try:
 	        sys.stdin = os.fdopen(sys.stdin.fileno(), 'rb', 0)
-	        stack.append(pyfits.open(sys.stdin,mode="readonly")[0].data)
+	        stak.append(pyfits.open(sys.stdin,mode="readonly")[0].data)
 	    except IOError:
 	        sys.stderr.write("Error opening fits from stdin.\n")
 
@@ -250,6 +250,8 @@ def inner(text):
     ip   = 0
     code = text
 
+    #print text
+
     while ( ip < len(code) ):
 	pydef(code[ip])
 	ip += 1
@@ -311,8 +313,30 @@ def outer(Input):
 
     input = saved
 
+def xdo():
+    body.append(ops[">R"])
+    body.append(ops[">R"])
+    rtrn.append(len(body))
+
+def xloop():
+    global ip
+
+    limit = rtrn[-2]
+    count = rtrn[-1]
+
+    if count < limit:
+	count += 1
+    else:
+	count -= 1
+
+    if ( count != limit ) :
+    	ip = code[ip]
+    else:
+	ip += 1
+	rtrn[-1] = count
+
 def xbegin():
-    rtrn.append(ip+1)
+    rtrn.append(len(body))
 
 def xrepeat():
     body.append(ops["(branch)"])
@@ -331,7 +355,6 @@ def xif():
     rtrn.append(len(body))
     body.append(0)
 
-
 def xelse():
     body.append(ops["(branch)"])
     body[rtrn.pop()] = len(body)
@@ -340,35 +363,36 @@ def xelse():
     rtrn.append(len(body)-1)
 
 def xthen():
-    body[rtrn.pop()] = len(body)
+    body[rtrn.pop()] = len(body)-1
 
 def xbranch():
     global ip
 
     ip = code[ip+1]
 
-def xbranch0():
+def xbranch0(x):
     global ip
 
     ip += 1
 
-    if not stak[0]:
+    if x == 0:
     	ip = code[ip]
 
-def xbranch1():
+
+def xbranch1(x):
     global ip
 
     ip += 1
 
-    if stak[0]:
+    if x == 1:
     	ip = code[ip]
 
 
 def array(x):
     dims = []
     for i in range(int(x)):
-        dims.append(int(stack.pop()))
-    stack.append(numpy.zeros(dims))
+        dims.append(int(stak.pop()))
+    stak.append(numpy.zeros(dims))
 
 def pyslice(data, s):
     sx = []
@@ -443,8 +467,8 @@ ops = {
     "until":    { "op": xuntil,         "imm" : 1, "signature": [] },
 
     "(branch)": { "op": xbranch,        "imm" : 0, "signature": [] },
-    "(branch0)":{ "op": xbranch0,       "imm" : 0, "signature": [] },
-    "(branch1)":{ "op": xbranch1,       "imm" : 0, "signature": [] },
+    "(branch0)":{ "op": xbranch0,       "imm" : 0, "signature": [num] },
+    "(branch1)":{ "op": xbranch1,       "imm" : 0, "signature": [num] },
 }
 
 
