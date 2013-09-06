@@ -18,6 +18,11 @@ sys.path.insert(0, os.path.join(os.getenv("HOME"), ".imrpn"))
 Home = os.getenv("HOME")
 Conf = os.path.join(Home,  ".imrpn")
 
+sys.stdout = os.fdopen(1, "wb")			# HACK HACK HACK
+
+
+
+
 class xpa(object):
     def fp():
 	pass
