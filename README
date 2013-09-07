@@ -1,17 +1,49 @@
 
- imrpn is a FITS image calculator written in python.
+ imrpn is a FITS image calculator in python.
 
 
-Here is an example to add two fits images and write the sum to an output file:
+Example : add two fits images and write the sum to an output file:
 
     john@panic : imrpn a.fits b.fits + > c.fits
 
 
-Predefined operators:
+Predefined unary operators	:	( value ) --> ( result )
 
- stack ( list, int ) --> num
- 
+    abs min max 
+    sqrt log log10 exp
+    sin cos tan arctan arctan2 atan atan2
 
+Predefined binary operators	:	( value, value ) --> ( result )
+
+    + - * / ** ^ 
+    and	or not 	
+
+Redustions :			:	( value, axis ) --> ( result )
+
+    sum prod mean median std var
+
+Distribution values 		:	( center, scale ) --> ( result )
+
+    normal
+            
+Stack operations :
+            
+    drop			:	( value ) --> (  )
+    dup 			:	( value ) --> ( value, value )
+    swap			:	( v1, v2 ) --> ( v2, v1 )
+    rot				:	( v1 , v2, v3 ) --> ( v3, v1, v2 ) 
+
+Data Array operators : 
+
+    []
+    stack
+    array
+
+Output :
+
+    .				:	( value ) --> (  )
+    ..				:	any	  --> (  )
+            
 
 Adding your own definitions rpn operators.
 
@@ -25,12 +57,4 @@ To add a colon definition
 
 
 You can add python code to imrpn by placing defs in ~/.imrpn/imrpn.py.
-
-
-
-
-
-
-
-
 

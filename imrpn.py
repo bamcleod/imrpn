@@ -6,9 +6,13 @@ import numpy
 sys.path.insert(0, os.path.join(os.getenv("HOME"), ".imrpn"))
 
 
-import fits
+try :
+    import pyfits
 
-#fits = pyfits
+    fits = pyfits
+except:
+    import fits
+
 
 Home = os.getenv("HOME")
 Conf = os.path.join(Home,  ".imrpn")
@@ -459,6 +463,8 @@ def imstack(im, dim) :
 
 ops = { 
     "abs":     	{ "op": abs,		"imm" : 0, "signature": [num] },
+    "min":     	{ "op": min,		"imm" : 0, "signature": [num] },
+    "max":     	{ "op": max,		"imm" : 0, "signature": [num] },
     "sin":     	{ "op": numpy.sin,	"imm" : 0, "signature": [num] },
     "cos":     	{ "op": numpy.cos,	"imm" : 0, "signature": [num] },
     "tan":     	{ "op": numpy.tan,	"imm" : 0, "signature": [num] },
@@ -470,18 +476,21 @@ ops = {
     "log":    	{ "op": numpy.log,	"imm" : 0, "signature": [num] },
     "log10":   	{ "op": numpy.log10,	"imm" : 0, "signature": [num] },
     "exp":    	{ "op": numpy.exp,	"imm" : 0, "signature": [num] },
-    "mean":    	{ "op": numpy.mean,	"imm" : 0, "signature": [num] },
+
+    "sum":    	{ "op": numpy.sum,	"imm" : 0, "signature": [num, Int] },
+    "prod":    	{ "op": numpy.prod,	"imm" : 0, "signature": [num, Int] },
+    "mean":    	{ "op": numpy.mean,	"imm" : 0, "signature": [num, Int] },
     "median":   { "op": numpy.median,	"imm" : 0, "signature": [num, Int]},
+    "std":      { "op": numpy.std,	"imm" : 0, "signature": [num, Int]},
+    "var":      { "op": numpy.var,	"imm" : 0, "signature": [num, Int]},
     "normal":  	{ "op": numpy.random.normal,"imm" : 0, "signature": [num, num]},
-    "stack":    { "op": imstack,	"imm" : 0, "signature": [num, int] },
+
     "+": 	{ "op": operator.add,	"imm" : 0, "signature": [num, num] },
     "-": 	{ "op": operator.sub,	"imm" : 0, "signature": [num, num] },
     "*": 	{ "op": operator.mul,	"imm" : 0, "signature": [num, num] },
     "/": 	{ "op": operator.div,	"imm" : 0, "signature": [num, num] },
     "**": 	{ "op": operator.pow,	"imm" : 0, "signature": [num, num] },
     "^": 	{ "op": operator.pow,	"imm" : 0, "signature": [num, num] },
-    "[]": 	{ "op": pyslice,	"imm" : 0, "signature": [num, str] },
-    "array":    { "op": array,  	"imm" : 0, "signature": [num] },
 
     "and": 	{ "op": operator.and_,	"imm" : 0, "signature": [num, num] },
     "or": 	{ "op": operator.or_,	"imm" : 0, "signature": [num, num] },
@@ -520,9 +529,11 @@ ops = {
     "(branch1)":{ "op": xbranch1,       "imm" : 0, "signature": [num] },
     "[":	{ "op": mkmark,		"imm" : 0, "signature": [] },
     "]":	{ "op": mklist,		"imm" : 0, "signature": [] },
+
+    "stack":    { "op": imstack,	"imm" : 0, "signature": [num, int] },
+    "[]": 	{ "op": pyslice,	"imm" : 0, "signature": [num, str] },
+    "array":    { "op": array,  	"imm" : 0, "signature": [num] },
 }
-
-
 
 # Main script action
 #
