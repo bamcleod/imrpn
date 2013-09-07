@@ -63,7 +63,7 @@ class header(object) :
 	    if len(card) != 80 : raise Exception("BAD EOF")
 
 	    if   card[0:8] == "SIMPLE  " : pass
-	    elif card[0:8] == "IMAGE   " : pass
+	    elif card[0:8] == "XTENSION" : pass
 	    else : raise Exception("This doesn't appear to be a FITS file")
 
 	    self.card.append(card)
@@ -225,22 +225,24 @@ class hdu(header) :
 	super(hdu, self).__init__(fp, primary=primary, cards=cards)
 
 	if hasattr(fp, 'read') :
+	    if self.databytes > 0 :
+		self.data = numpy.fromfile(fp, dtype=bitpix2dtype[self.bitpix], count=self.datapixls)
 
-	    self.data = numpy.fromfile(fp, dtype=bitpix2dtype[self.bitpix], count=self.datapixls)
+		if swapped() :
+		    self.data.byteswap(True)
 
-	    if swapped() :
-		self.data.byteswap(True)
+		if self.bitpix == 16 and self.bzero == -32768 :
+		    self.data *= self.bscale
+		    self.data += self.bzero
+		    self.data.dtype = ">u2"
 
-	    if self.bitpix == 16 and self.bzero == -32768 :
-		self.data *= self.bscale
-		self.data += self.bzero
-		self.data.dtype = ">u2"
+		fp.read(self.databloks*2880 - self.databytes)	# Read the padd.
+	    
+		if len(self.shape) :
+		    self.data.shape = self.shape
 
-	    fp.read((fp.tell()+2879)/2880)		# Read the padd.
-	
-	    print "Shape", self.data.shape, self.shape
-
-	    self.data.shape = self.shape
+	    else:
+	    	self.data = None
 
 	elif isinstance(fp, numpy.ndarray) :
 	    self.data = fp

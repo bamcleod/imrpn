@@ -5,9 +5,10 @@ import numpy
 
 sys.path.insert(0, os.path.join(os.getenv("HOME"), ".imrpn"))
 
-import pyfits
 
-fits = pyfits
+import fits
+
+#fits = pyfits
 
 Home = os.getenv("HOME")
 Conf = os.path.join(Home,  ".imrpn")
@@ -203,10 +204,15 @@ def num(x) :
 
 	(file, extn) = extparse(x)
 
-	return fits.open(file)[extn].data
-
 	try:
-		pass
+	    data = fits.open(file)[extn].data
+
+	    if data == None :
+	    	print "imrpn: hdu has no data : " + x
+		exit(1)
+
+    	    return data
+
 	except IOError:
 	    print "imrpn: cannot read file: " + x
 	    exit(1)
