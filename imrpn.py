@@ -18,6 +18,10 @@ sys.path.insert(0, os.path.join(os.getenv("HOME"), ".imrpn"))
 Home = os.getenv("HOME")
 Conf = os.path.join(Home,  ".imrpn")
 
+
+sys.stdout = os.fdopen(1, "wb")			# HACK HACK HACK
+
+
 class xpa(object):
     def fp():
 	pass
@@ -126,10 +130,11 @@ def dot(result):					# Generic output operator
 
 	    return None
 
-    if len(numpy.shape(result)) == 0: 			# Just a scalar
-	print result,
+    if type(result) == list or type(result) == str or len(numpy.shape(result)) == 0: 			# Just a scalar
+	print result
 
 	return None
+
 
     if sys.stdout.isatty() : 				# Last chance, write FITS to stdout?
 	sys.stderr.write("Refuse to write image to a tty.\n")
@@ -155,10 +160,18 @@ def dotdot() :
 
 def python(code) : return eval(code)
  
+def Int(x):
+    if type(x) == str and x == "None" :
+	return None
+	
+    return int(x)
 def any(x): return     x
 def chr(x): return str(x)
 def num(x) :
-    if ( type(x) == str ) :
+    if type(x) == list :
+	return map(num, x)
+
+    if type(x) == str  :
 	try:
 	    return float(x)
 	except ValueError:
@@ -278,8 +291,8 @@ def semi():
 
     text = list(body)
 
-    #for x in text:
-    #	print x
+    for x in text:
+    	print x
 
     ops[name] = { "op": lambda : inner(list(text)), "imm": 0, "signature": [] }
     state     = 0
@@ -294,6 +307,7 @@ def outer(Input):
 
     while ( len(input) ) :
 	word = input.pop(0)
+
 
 	#print "outer ", word
 
@@ -408,6 +422,32 @@ def pyslice(data, s):
 
     return data[sx]
 
+def mkmark() :
+	rtrn.append(len(stak))
+
+	return None
+
+def mklist() :
+	global stak
+
+	if len(rtrn) == 0 :
+		f = 0
+	else :
+		f = rtrn.pop()
+
+
+	l = list(stak[f:])
+
+	stak = stak[:f]
+
+	return l
+
+def imstack(im, dim) :
+	if dim == 1: return numpy.hstack(im)
+	if dim == 2: return numpy.vstack(im)
+	if dim == 3: return numpy.dstack(im)
+
+	raise Exception("stack dimension must be 1, 2, or 3")
 
 ops = { 
     "abs":     	{ "op": abs,		"imm" : 0, "signature": [num] },
@@ -423,8 +463,9 @@ ops = {
     "log10":   	{ "op": numpy.log10,	"imm" : 0, "signature": [num] },
     "exp":    	{ "op": numpy.exp,	"imm" : 0, "signature": [num] },
     "mean":    	{ "op": numpy.mean,	"imm" : 0, "signature": [num] },
-    "median":  	{ "op": numpy.median,	"imm" : 0, "signature": [num]},
-    "normal":  	{ "op": numpy.random.normal,	"imm" : 0, "signature": [num, num]},
+    "median":   { "op": numpy.median,	"imm" : 0, "signature": [num, Int]},
+    "normal":  	{ "op": numpy.random.normal,"imm" : 0, "signature": [num, num]},
+    "stack":    { "op": imstack,	"imm" : 0, "signature": [num, int] },
     "+": 	{ "op": operator.add,	"imm" : 0, "signature": [num, num] },
     "-": 	{ "op": operator.sub,	"imm" : 0, "signature": [num, num] },
     "*": 	{ "op": operator.mul,	"imm" : 0, "signature": [num, num] },
@@ -469,6 +510,8 @@ ops = {
     "(branch)": { "op": xbranch,        "imm" : 0, "signature": [] },
     "(branch0)":{ "op": xbranch0,       "imm" : 0, "signature": [num] },
     "(branch1)":{ "op": xbranch1,       "imm" : 0, "signature": [num] },
+    "[":	{ "op": mkmark,		"imm" : 0, "signature": [] },
+    "]":	{ "op": mklist,		"imm" : 0, "signature": [] },
 }
 
 
@@ -491,18 +534,21 @@ outer(shlex.split("""
 	: pi	numpy.pi python	;
 	"""))
 
+
 start = sorted(set([os.path.join(Home, ".imrpn")
 	          , os.path.join(Home, ".imrpn", "imrpn.rc")
 		  , os.path.join(os.getcwd(), ".imrpn")]))
 
-
 try : 
-    imports = __import__("imrpn").init()
+    file = os.path.join(Home, ".imrpn", "imrpn.py")
+
+    if os.path.exists(file) and os.path.isfile(file) : 
+	imports = __import__("imrpn").init()
 except:
     pass
 
 for file in start :
-     if ( os.path.exists(file) ) and os.path.isfile(file) : outer(macro(file))
+     if os.path.exists(file) and os.path.isfile(file) : outer(macro(file))
 
 outer(sys.argv[1:] + ["..", "."])	# Evaluate the command line & Dump the stack.
 

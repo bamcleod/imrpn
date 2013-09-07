@@ -1,0 +1,36 @@
+
+ imrpn is a FITS image calculator written in python.
+
+
+Here is an example to add two fits images and write the sum to an output file:
+
+    john@panic : imrpn a.fits b.fits + > c.fits
+
+
+Predefined operators:
+
+ stack ( list, int ) --> num
+ 
+
+
+Adding your own definitions rpn operators.
+
+You can add your own operator definitions coded as a : (colon) definitions
+or coded directly in python.
+
+Initial colon definitions are read from an initilization file.  Usually "~/.imrpn" or
+"~/imrpn/imrpn.rc"
+
+To add a colon definition 
+
+
+You can add python code to imrpn by placing defs in ~/.imrpn/imrpn.py.
+
+
+
+
+
+
+
+
+
