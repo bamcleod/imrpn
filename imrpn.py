@@ -4,7 +4,6 @@ import os
 import sys
 
 import numpy
-import pyfits
 
 import re
 import operator
@@ -15,9 +14,13 @@ import shlex
 
 sys.path.insert(0, os.path.join(os.getenv("HOME"), ".imrpn"))
 
+import fits
+
+
 Home = os.getenv("HOME")
 Conf = os.path.join(Home,  ".imrpn")
 
+sys.stdin  = os.fdopen(0, "rb")			# HACK HACK HACK
 sys.stdout = os.fdopen(1, "wb")			# HACK HACK HACK
 
 
@@ -42,12 +45,14 @@ class xpa(object):
 	else :
 	    p = ""
 
+	cmd = "%(0)s%(1)s %(2)s %(3)s" % { '0':self.xpaset, '1':p, '2':self.target, '3':params }
+
 	if ( self.debug == 1 ) :
-	    print "xpaset%(0)s %(1)s %(2)s" % { '0':p, '1': self.target, '2':params }
-	    if ( buffer != None ) :
-		print buffer
+	    print cmd, buffer
 	else :
-	    fp = os.popen("%(0)s%(1)s %(2)s %(3)s" % { '0':self.xpaset, '1':p, '2':self.target, '3':params }, "wb")
+	    #print cmd, buffer
+
+	    fp = os.popen(cmd, "wb")
 
 	    if ( buffer == xpa.fp ) :
 		return fp
@@ -57,7 +62,11 @@ class xpa(object):
 	    fp.close()
 
     def get(self, params, buffer=None):
-	fp = os.popen("%(0)s%(1)s %(2)s" % { '0':self.xpaget, '1':self.target, '2':params }, "r")
+	cmd = "%(0)s%(1)s %(2)s" % { '0':self.xpaget, '1':self.target, '2':params }
+
+	#print cmd
+
+	fp = os.popen(cmd, "r")
 
 	if ( buffer == xpa.fp ) :
 	    return fp
@@ -97,33 +106,34 @@ def extparse(file, deffile="", defextn=0):
     if ( x[0] != "" ) : file = x[0]
     else: 		file = deffile
 
-    if ( len(x) == 2 ): extn  = x[1]
+    if ( len(x) == 2 ): extn  = int(x[1])
     else: 		extn  = defextn
 
     return (file, extn)
 
 def dot(result):					# Generic output operator
     if ( type(result) == str and result[:4] == "ds9:" ):# Maybe push the result to ds9?
-	    (target, frame) = extparse(result[4:], "ds9")
+	    (target, frame) = extparse(result[4:], "ds9", 1)
 
 	    result = num(stack.pop())
 
 	    try:
 		if ( frame != 0 ) :
-		    xpa(target).set("frame " + frame)
+		    xpa(target, debug=0).set("frame " + str(frame))
 
-		fp = xpa(target).set("fits", xpa.fp)
+		fp = xpa(target, debug=0).set("fits", xpa.fp)
 
 	    except TypeError:
 		print "imrpn cannot talk to ds9: " + target + "," + str(frame)
 	   	exit(1)
 
-	    hdu = pyfits.PrimaryHDU(result)
+	    hdu = fits.PrimaryHDU(result)
+
 	    try:
 		hdu.writeto(fp)
 		fp.close()
 	    except(ValueError, IOError):
-		print "imrpn cannot write to ds9: " + target + "," + str(frame)
+		print "imrpn cannot write to ds9: " + target + "," + str(frame), fp
 	   	exit(1)
 
 
@@ -139,7 +149,7 @@ def dot(result):					# Generic output operator
 	sys.stderr.write("Refuse to write image to a tty.\n")
 	exit(1)
 
-    hdu = pyfits.PrimaryHDU(result)
+    hdu = fits.PrimaryHDU(result)
     hdu.writeto(sys.stdout)
 
     return None
@@ -157,6 +167,7 @@ def Int(x):
 	return None
 	
     return int(x)
+
 def any(x): return     x
 def chr(x): return str(x)
 def num(x) :
@@ -173,29 +184,29 @@ def num(x) :
 	    (target, frame) = extparse(x[4:], "ds9")
 
 	    if ( frame != 0 ) :
-		xpa(target).set("frame " + frame)
+		xpa(target, debug=0).set("frame " + frame)
 
-	    x = xpa(target).get("file").strip()
+	    x = xpa(target, debug=0).get("file").strip()
 
 	    if ( x == "" ):
 		print "imrpn: cannot get file name from ds9: " + target + "," + str(frame)
 		exit(1)
 
 	    if ( x == "stdin" ):
-		return pyfits.open(StringIO.StringIO(xpa(target).get("fits", xpa.fp).read())
+		return fits.open(StringIO.StringIO(xpa(target, debug=0).get("fits", xpa.fp).read())
 				, mode="readonly")[0].data
 
 	if ( x == "stdin" ):
 	    try:
 	        sys.stdin = os.fdopen(sys.stdin.fileno(), 'rb', 0)
-	        stack.append(pyfits.open(sys.stdin,mode="readonly")[0].data)
+	        stack.append(fits.open(sys.stdin,mode="readonly")[0].data)
 	    except IOError:
 	        sys.stderr.write("Error opening fits from stdin.\n")
 
 
 	(file, extn) = extparse(x)
 
-	return pyfits.open(file)[extn].data
+	return fits.open(file)[extn].data
 
 	try:
 		pass
@@ -237,6 +248,8 @@ def pydef(dentry):
     for (x, filter) in zip(range(-len(dentry["signature"]), 0, 1)
 			 , dentry["signature"]):
 	operands.append(filter(stack.pop(x)))
+
+    #print operands
 
     result = dentry["op"](*operands)
 
@@ -431,9 +444,9 @@ start = sorted(set([os.path.join(Home, ".imrpn")
 
 
 try : 
-    imports = __import__("imrpn").init()
+    imports = __import__("imrpn-defs").init()
 except:
-    raise
+    pass
 
 for file in start :
      if os.path.exists(file) and os.path.isfile(file) : outer(macro(file))
