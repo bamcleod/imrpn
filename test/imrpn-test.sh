@@ -24,7 +24,9 @@ Test sub;	CompareEval "$imrpn 1 1 -"	0.0
 Test mul;	CompareEval "$imrpn 1 1 *"	1.0
 Test div;	CompareEval "$imrpn 1 1 /"	1.0
 
-Test DotDot;	CompareEval "$imrpn 1 2 3"	"3 2 1"
+Test DotDot;	CompareEval "$imrpn 1 2 3"	"3
+2
+1"
 
 #Test Array;	$imrpn 2 2 2 array > array.tmp
 #		DiffFiles array.tmp array.fits
