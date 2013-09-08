@@ -73,7 +73,12 @@ def dot(result):						# Generic output operator
 	exit(1)
 
     else:
-	hdu = fits.PrimaryHDU(result)
+	try:
+	    hdu = fits.PrimaryHDU(result)
+	except fits.Huh:
+	    print "imrpn: cannot convert to FITS: ", result
+	    exit(1)
+
 	hdu.writeto(sys.stdout)
 
 def xdotdot(op):
