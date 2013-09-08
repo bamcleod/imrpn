@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-import os, sys, operator, numpy, traceback
+import os, sys, operator, numpy
 
 sys.path.insert(0, os.path.join(os.getenv("HOME"), ".imrpn"))
 
@@ -13,10 +13,10 @@ Conf = os.path.join(Home,  ".imrpn")
 
 # Fetch and Store variables
 #
-varib = {}
+vm.varib = {}
 
-def store(value, name): varib[name] = value
-def fetch(name): return varib[name]
+def store(value, name): vm.varib[name] = value
+def fetch(name): return vm.varib[name]
 
 # Standard stack ops
 #
@@ -38,7 +38,7 @@ def extparse(file, deffile="", defextn=0):
 
 def dot(result):						# Generic output operator
     if ( type(result) == str and result[:4] == "ds9:" ):	# Maybe push the result to ds9?
-	    (target, frame) = extparse(result[4:], "ds9", 1)
+	    (target, frame) = extparse(result[4:], "ds9", 0)
 
 	    result = num(vm.stak.pop())
 
@@ -49,11 +49,14 @@ def dot(result):						# Generic output operator
 		fp = xpa.xpa(target, debug=0).set("fits", xpa.xpa.fp)
 
 	    except TypeError:
-	        traceback.print_exc()
 		print "imrpn cannot talk to ds9: " + target + "," + str(frame)
 	   	exit(1)
 
-	    hdu = fits.PrimaryHDU(result)
+    	    try:
+		hdu = fits.PrimaryHDU(result)
+    	    except fits.Huh:
+	    	print "imrpn: cannot convert to FITS: ", result
+		exit(1)
 
 	    try:
 		hdu.writeto(fp)
@@ -105,7 +108,7 @@ def num(x) :
 	    pass
 
 	if ( x[:4] == "ds9:" ):
-	    (target, frame) = extparse(x[4:], "ds9")
+	    (target, frame) = extparse(x[4:], "ds9", 0)
 
 	    if ( frame != 0 ) :
 		xpa.xpa(target, debug=0).set("frame " + str(frame))

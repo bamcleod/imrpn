@@ -35,8 +35,9 @@ def parcard(card) :
     return [name, value, comment]
 
 
-class EOF(Exception):
-	pass
+class Huh(Exception): pass
+class EOF(Exception): pass
+class BadEOF(Exception): pass
 
 dtype2bitpix = { 8: "u1", "int16": 16, "int32": 32, "float32": -32, "float64": -64 }
 bitpix2dtype = { 8: "u1", 16: "i2", 32: "i4", -32: "f4", -64: "f8" }
@@ -60,7 +61,7 @@ class header(object) :
 	    card = fp.read(80)
 
 	    if len(card) == 0  : raise EOF
-	    if len(card) != 80 : raise Exception("BAD EOF")
+	    if len(card) != 80 : raise BadEOF
 
 	    if   card[0:8] == "SIMPLE  " : pass
 	    elif card[0:8] == "XTENSION" : pass
@@ -117,7 +118,7 @@ class header(object) :
 	    self.headbytes = self.headbloks * 2880
 
 	else:
-	    raise Exception("huh?")
+	    raise Huh
 
 	for i, card in enumerate(self.card) :		# Hash card in head for easy lookup
 	    try :
@@ -248,7 +249,7 @@ class hdu(header) :
 	    self.data = fp
 
 	else:
-	    raise Exception("huh?")
+	    raise Huh
 
     def writeto(self, other) :
 	if type(other) == str :
