@@ -31,6 +31,7 @@ Test DotDot;	CompareEval "$imrpn 1 2 3"	"3
 #Test Array;	$imrpn 2 2 2 array > array.tmp
 #		DiffFiles array.tmp array.fits
 
+Test pi;	CompareEval "$imrpn pi"	3.14159265359
 
 TestDone
 

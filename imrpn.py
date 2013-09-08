@@ -13,6 +13,8 @@ try :
 except:
     import fits
 
+import xpa
+
 
 Home = os.getenv("HOME")
 Conf = os.path.join(Home,  ".imrpn")
@@ -20,57 +22,6 @@ Conf = os.path.join(Home,  ".imrpn")
 sys.stdin  = os.fdopen(0, "rb")			# HACK HACK HACK
 sys.stdout = os.fdopen(1, "wb")			# HACK HACK HACK
 
-class xpa(object):
-    def fp():
-	pass
-
-    def __init__(self, target, debug=0):
-	self.target = target
-	self.debug  = debug
-
-	if ( self.debug == 2 ) :
-	    self.xpaset = "echo xpaset "
-	    self.xpaget = "echo xpaget "
-	else :
-	    self.xpaset = "xpaset "
-	    self.xpaget = "xpaget "
-
-    def set(self, params, buffer=None):
-	if ( buffer == None ) :
-	    p = " -p"
-	else :
-	    p = ""
-
-	cmd = "%(0)s%(1)s %(2)s %(3)s" % { '0':self.xpaset, '1':p, '2':self.target, '3':params }
-
-	if ( self.debug == 1 ) :
-	    print cmd, buffer
-	else :
-	    #print cmd, buffer
-
-	    fp = os.popen(cmd, "wb")
-
-	    if ( buffer == xpa.fp ) :
-		return fp
-
-	    if ( buffer != None ) :
-		fp.write(buffer)
-	    fp.close()
-
-    def get(self, params, buffer=None):
-	cmd = "%(0)s%(1)s %(2)s" % { '0':self.xpaget, '1':self.target, '2':params }
-
-	#print cmd
-
-	fp = os.popen(cmd, "r")
-
-	if ( buffer == xpa.fp ) :
-	    return fp
-
-	buffer = fp.read() 
-	fp.close()
-
-	return buffer
 
 # Fetch and Store variables
 #
@@ -172,7 +123,6 @@ def Int(x):
     return int(x)
 
 def any(x): return     x
-def chr(x): return str(x)
 def num(x) :
     if type(x) == list :
 	return map(num, x)
@@ -224,15 +174,15 @@ def num(x) :
     return x
 
 
+# Return the contents of a file.
+#
+def cat(file) : fp = open(file);  data = fp.read();  fp.close();  return data
+
 # Run a file as input.  Can be used to read ":" definitions
 #
-def macro(file):
-	fp = open(file)
-	data = re.sub(re.compile("#.*\n" ) ,"" ,  fp.read()).split()
-	fp.close()
-	return data
+def macro(file): return shlex.split(cat(file))
 
-def mcode():     outer(macro(input.pop(0)))
+def mcode(file): outer(macro(file))
 
 
 # Import python code and define the new operators.
@@ -242,11 +192,9 @@ def rpndef(name, func, signature) :
 
 __builtins__.num    = num	# Cast functions must be available in the new module
 __builtins__.any    = any	# so stuff them in __builtins__
-__builtins__.chr    = chr
 __builtins__.rpndef = rpndef
 
-def pcode(): mod = __import__(input.pop(0)).init()
-
+def pcode(file): __import__(file).init(); return None 
 
 # Run a python def off the stack
 #
@@ -504,12 +452,12 @@ ops = {
     ".":	{ "op": dot,            "imm" : 0, "signature": [any] },
     "..":       { "op": dotdot,		"imm" : 1, "signature": [] },
 
-    "!":	{ "op": store,		"imm" : 0, "signature": [any, chr] },
-    "@":	{ "op": fetch,		"imm" : 0, "signature": [chr] },
+    "!":	{ "op": store,		"imm" : 0, "signature": [any, str] },
+    "@":	{ "op": fetch,		"imm" : 0, "signature": [str] },
 
-    "\\":       { "op":  mcode,		"imm" : 0, "signature": [] },
+    ".py":      { "op": pcode,		"imm" : 0, "signature": [str] },
+    ".rc":      { "op": mcode,		"imm" : 0, "signature": [str] },
     "python":   { "op": python,		"imm" : 0, "signature": [str] },
-    ".py":      { "op": pcode,		"imm" : 0, "signature": [] },
     ":": 	{ "op": colon,		"imm" : 0, "signature": [] },
     ";": 	{ "op": semi,		"imm" : 1, "signature": [] },
 
@@ -548,26 +496,22 @@ input = []	# Machine state
 stak  = []
 rtrn  = []
 
-outer(shlex.split("""
-	: e	numpy.e  python ;
-	: pi	numpy.pi python	;
-	"""))
-
-
-start = sorted(set([os.path.join(Home, ".imrpn")
-	          , os.path.join(Home, ".imrpn", "imrpn.rc")
-		  , os.path.join(os.getcwd(), ".imrpn")]))
 
 try : 
-    file = os.path.join(Home, ".imrpn", "imrpn.py")
+    file = os.path.join(Home, ".imrpn", "imrpn-extend.py")
 
     if os.path.exists(file) and os.path.isfile(file) : 
-	imports = __import__("imrpn").init()
+	imports = __import__("imrpn-extend").init()
 except:
     pass
 
+
+start = sorted(set([os.path.join(Home, ".imrpn", "imrpn.rc")
+		  , os.path.join(os.getcwd(), "imrpn.rc")
+		  , os.path.join(os.getcwd(), ".imrpn")]))
+
 for file in start :
-     if os.path.exists(file) and os.path.isfile(file) : outer(macro(file))
+    if os.path.exists(file) and os.path.isfile(file) : mcode(file)
 
 outer(sys.argv[1:] + ["..", "."])	# Evaluate the command line & Dump the stack.
 
