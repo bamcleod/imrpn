@@ -44,9 +44,9 @@ def dot(result):						# Generic output operator
 
 	    try:
 		if ( frame != 0 ) :
-		    xpa.xpa(target, debug=0).set("frame " + str(frame))
+		    xpa.xpa(target).set("frame " + str(frame))
 
-		fp = xpa.xpa(target, debug=0).set("fits", xpa.xpa.fp)
+		fp = xpa.xpa(target).set("fits", xpa.xpa.fp)
 
 	    except TypeError:
 		print "imrpn cannot talk to ds9: " + target + "," + str(frame)
@@ -116,16 +116,16 @@ def num(x) :
 	    (target, frame) = extparse(x[4:], "ds9", 0)
 
 	    if ( frame != 0 ) :
-		xpa.xpa(target, debug=0).set("frame " + str(frame))
+		xpa.xpa(target).set("frame " + str(frame))
 
-	    x = xpa.xpa(target, debug=0).get("file").strip()
+	    x = xpa.xpa(target).get("file").strip()
 
 	    if ( x == "" ):
 		print "imrpn: cannot get file name from ds9: " + target + "," + str(frame)
 		exit(1)
 
 	    if ( x == "stdin" ):
-		return fits.open(xpa.xpa(target, debug=0).get("fits", xpa.xpa.fp))[0].data
+		return fits.open(xpa.xpa(target).get("fits", xpa.xpa.fp))[0].data
 
 	if ( x == "stdin" ):
 	    try:

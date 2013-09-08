@@ -1,14 +1,15 @@
 import os
 
+debug = 0
+
 class xpa(object):
     def fp():
 	pass
 
-    def __init__(self, target, debug=0):
+    def __init__(self, target):
 	self.target = target
-	self.debug  = debug
 
-	if ( self.debug == 2 ) :
+	if ( debug == 2 ) :
 	    self.xpaset = "echo xpaset "
 	    self.xpaget = "echo xpaget "
 	else :
@@ -23,11 +24,9 @@ class xpa(object):
 
 	cmd = "%(0)s%(1)s %(2)s %(3)s" % { '0':self.xpaset, '1':p, '2':self.target, '3':params }
 
-	if ( self.debug == 1 ) :
+	if ( debug == 1 ) :
 	    print cmd, buffer
 	else :
-	    #print cmd, buffer
-
 	    fp = os.popen(cmd, "wb")
 
 	    if ( buffer == xpa.fp ) :
@@ -39,8 +38,6 @@ class xpa(object):
 
     def get(self, params, buffer=None):
 	cmd = "%(0)s%(1)s %(2)s" % { '0':self.xpaget, '1':self.target, '2':params }
-
-	#print cmd
 
 	fp = os.popen(cmd, "r")
 
