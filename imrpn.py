@@ -10,6 +10,10 @@ try :
     import pyfits
 
     fits = pyfits
+
+    sys.stdin  = os.fdopen(0, "rb")			# HACK HACK HACK
+    sys.stdout = os.fdopen(1, "wb")			# HACK HACK HACK
+
 except:
     import fits
 
@@ -18,9 +22,6 @@ import xpa
 
 Home = os.getenv("HOME")
 Conf = os.path.join(Home,  ".imrpn")
-
-sys.stdin  = os.fdopen(0, "rb")			# HACK HACK HACK
-sys.stdout = os.fdopen(1, "wb")			# HACK HACK HACK
 
 
 # Fetch and Store variables
@@ -86,7 +87,7 @@ def dot(result):					# Generic output operator
 
 	    return None
 
-    if type(result) == list or type(result) == str or len(numpy.shape(result)) == 0: 			# Just a scalar
+    if type(result) == list or type(result) == str or len(numpy.shape(result)) == 0:	# Just a scalar
 	print result
 
 	return None
