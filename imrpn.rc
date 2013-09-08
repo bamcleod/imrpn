@@ -1,3 +1,4 @@
 
-: e	numpy.e  python ;
-: pi	numpy.pi python	;
+: e	" numpy.e     "	python ;
+: pi	" numpy.pi    "	python ;
+: 2pi	" numpy.pi * 2" python ;

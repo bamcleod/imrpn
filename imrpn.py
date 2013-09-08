@@ -1,28 +1,13 @@
 #!/usr/bin/env python
 #
-import os, sys, re, shlex, operator
-import numpy
+import os, sys, operator, numpy, traceback
 
 sys.path.insert(0, os.path.join(os.getenv("HOME"), ".imrpn"))
 
-
-try :
-    import pyfits
-
-    fits = pyfits
-
-    sys.stdin  = os.fdopen(0, "rb")			# HACK HACK HACK
-    sys.stdout = os.fdopen(1, "wb")			# HACK HACK HACK
-
-except:
-    import fits
-
-import xpa
-
+import xpa, fits
 
 Home = os.getenv("HOME")
 Conf = os.path.join(Home,  ".imrpn")
-
 
 # Fetch and Store variables
 #
@@ -30,23 +15,13 @@ varib = {}
 
 def store(value, name): varib[name] = value
 def fetch(name): return varib[name]
-	
 
 # Standard stack ops
 #
-def dup(x):
-    stak.append(x)
-    stak.append(x)
-
-def rot(x, y, z):
-    stak.append(z)
-    stak.append(x)
-    stak.append(y)
-
-def drop(x): return None
-def swap(x, y):
-    stak.append(y)
-    stak.append(x)
+def drop(x): 	  pass
+def dup(x): 	  stak.extend([x, x])
+def swap(x, y):   stak.extend([y, x])
+def rot(x, y, z): stak.extend([z, y, x])
 
 def extparse(file, deffile="", defextn=0):
     x = file.split(",")
@@ -59,19 +34,20 @@ def extparse(file, deffile="", defextn=0):
 
     return (file, extn)
 
-def dot(result):					# Generic output operator
-    if ( type(result) == str and result[:4] == "ds9:" ):# Maybe push the result to ds9?
+def dot(result):						# Generic output operator
+    if ( type(result) == str and result[:4] == "ds9:" ):	# Maybe push the result to ds9?
 	    (target, frame) = extparse(result[4:], "ds9", 1)
 
 	    result = num(stak.pop())
 
 	    try:
 		if ( frame != 0 ) :
-		    xpa(target, debug=0).set("frame " + str(frame))
+		    xpa.xpa(target, debug=0).set("frame " + str(frame))
 
-		fp = xpa(target, debug=0).set("fits", xpa.fp)
+		fp = xpa.xpa(target, debug=0).set("fits", xpa.xpa.fp)
 
 	    except TypeError:
+	        traceback.print_exc()
 		print "imrpn cannot talk to ds9: " + target + "," + str(frame)
 	   	exit(1)
 
@@ -84,24 +60,16 @@ def dot(result):					# Generic output operator
 		print "imrpn cannot write to ds9: " + target + "," + str(frame), fp
 	   	exit(1)
 
-
-	    return None
-
-    if type(result) == list or type(result) == str or len(numpy.shape(result)) == 0:	# Just a scalar
+    elif type(result) == list or type(result) == str or len(numpy.shape(result)) == 0:	# Just a scalar
 	print result
 
-	return None
-
-
-    if sys.stdout.isatty() : 				# Last chance, write FITS to stdout?
+    elif sys.stdout.isatty() : 					# Last chance, write FITS to stdout?
 	sys.stderr.write("Refuse to write image to a tty.\n")
 	exit(1)
 
-    hdu = fits.PrimaryHDU(result)
-    hdu.writeto(sys.stdout)
-
-    return None
-
+    else:
+	hdu = fits.PrimaryHDU(result)
+	hdu.writeto(sys.stdout)
 
 def xdotdot(op):
     while ( len(stak) and len(stak) >= len(op["signature"]) ): pydef(op)
@@ -138,42 +106,38 @@ def num(x) :
 	    (target, frame) = extparse(x[4:], "ds9")
 
 	    if ( frame != 0 ) :
-		xpa(target, debug=0).set("frame " + frame)
+		xpa.xpa(target, debug=0).set("frame " + str(frame))
 
-	    x = xpa(target, debug=0).get("file").strip()
+	    x = xpa.xpa(target, debug=0).get("file").strip()
 
 	    if ( x == "" ):
 		print "imrpn: cannot get file name from ds9: " + target + "," + str(frame)
 		exit(1)
 
 	    if ( x == "stdin" ):
-		return fits.open(xpa(target, debug=0).get("fits", xpa.fp))[0].data
+		return fits.open(xpa.xpa(target, debug=0).get("fits", xpa.xpa.fp))[0].data
 
 	if ( x == "stdin" ):
 	    try:
-	        sys.stdin = os.fdopen(sys.stdin.fileno(), 'rb', 0)
-	        stak.append(fits.open(sys.stdin)[0].data)
+	        x = fits.open(sys.stdin)[0].data
 	    except IOError:
 	        sys.stderr.write("Error opening fits from stdin.\n")
 
+	else:
+	    (file, extn) = extparse(x)
 
-	(file, extn) = extparse(x)
+	    try:
+		x = fits.open(file)[extn].data
 
-	try:
-	    data = fits.open(file)[extn].data
+		if x == None :
+		    print "imrpn: hdu has no data : " + x
+		    exit(1)
 
-	    if data == None :
-	    	print "imrpn: hdu has no data : " + x
+	    except IOError:
+		print "imrpn: cannot read file: " + x
 		exit(1)
 
-    	    return data
-
-	except IOError:
-	    print "imrpn: cannot read file: " + x
-	    exit(1)
-
     return x
-
 
 # Return the contents of a file.
 #
@@ -181,10 +145,8 @@ def cat(file) : fp = open(file);  data = fp.read();  fp.close();  return data
 
 # Run a file as input.  Can be used to read ":" definitions
 #
-def macro(file): return shlex.split(cat(file))
-
+def macro(file): return cat(file).split()
 def mcode(file): outer(macro(file))
-
 
 # Import python code and define the new operators.
 #
@@ -195,7 +157,7 @@ __builtins__.num    = num	# Cast functions must be available in the new module
 __builtins__.any    = any	# so stuff them in __builtins__
 __builtins__.rpndef = rpndef
 
-def pcode(file): __import__(file).init(); return None 
+def pcode(file): __import__(file).init()
 
 # Run a python def off the stack
 #
@@ -204,8 +166,6 @@ def pydef(dentry):
     for (x, filter) in zip(range(-len(dentry["signature"]), 0, 1)
 			 , dentry["signature"]):
 	operands.append(filter(stak.pop(x)))
-
-    #print operands
 
     result = dentry["op"](*operands)
 
@@ -224,8 +184,6 @@ def inner(text):
     ip   = 0
     code = text
 
-    #print text
-
     while ( ip < len(code) ):
 	pydef(code[ip])
 	ip += 1
@@ -233,12 +191,11 @@ def inner(text):
     ip   = ipsave
     code = cdsave
 
-
 def lit():
     global ip
 
     ip += 1
-    stak.append(code[ip])
+    return code[ip]
 
 def colon():
     global name, body, state 
@@ -252,11 +209,27 @@ def semi():
 
     text = list(body)
 
-    #for x in text:
-    #	print x
-
     ops[name] = { "op": lambda : inner(list(text)), "imm": 0, "signature": [] }
     state     = 0
+
+def comment() :
+    while input.pop(0) != ")" : pass
+
+def quote() :
+    word = []
+    while 1 :
+    	tok = input.pop(0)
+        if tok[-1] == "\"" :
+    	    word.append(tok[0:-1])
+    	    break
+    	else:
+    	    word.append(tok)
+
+    if state :
+	body.append(ops["(lit)"])
+	body.append(" ".join(word))
+    else:
+	stak.append(" ".join(word))
 
 # The outer loop - consumes input and corrosponds to 4th's evaluate
 #
@@ -269,17 +242,12 @@ def outer(Input):
     while ( len(input) ) :
 	word = input.pop(0)
 
-
-	#print "outer ", word
-
 	if word in ops:		# Lookup word
-	    #print "	op"
 	    if ( state and not ops[word]["imm"] ):
 		body.append(ops[word])
 	    else:
 		pydef(ops[word])
 	else:
-	    #print "	lit"
 	    if ( state ):
 		body.append(ops["(lit)"])
 		body.append(word)
@@ -367,7 +335,8 @@ def array(x):
     dims = []
     for i in range(int(x)):
         dims.append(int(stak.pop()))
-    stak.append(numpy.zeros(dims))
+
+    return numpy.zeros(dims)
 
 def pyslice(data, s):
     sx = []
@@ -383,11 +352,7 @@ def pyslice(data, s):
 
     return data[sx]
 
-def mkmark() :
-	rtrn.append(len(stak))
-
-	return None
-
+def mkmark() : rtrn.append(len(stak))
 def mklist() :
 	global stak
 
@@ -461,6 +426,7 @@ ops = {
     "python":   { "op": python,		"imm" : 0, "signature": [str] },
     ":": 	{ "op": colon,		"imm" : 0, "signature": [] },
     ";": 	{ "op": semi,		"imm" : 1, "signature": [] },
+    "\"": 	{ "op": quote,		"imm" : 1, "signature": [] },
 
     "(lit)": 	{ "op": lit, 		"imm" : 0, "signature": [] },
     "(dotdot)":	{ "op": xdotdot, 	"imm" : 0, "signature": [any] },
@@ -497,7 +463,6 @@ input = []	# Machine state
 stak  = []
 rtrn  = []
 
-
 try : 
     file = os.path.join(Home, ".imrpn", "imrpn-extend.py")
 
@@ -505,7 +470,6 @@ try :
 	imports = __import__("imrpn-extend").init()
 except:
     pass
-
 
 start = sorted(set([os.path.join(Home, ".imrpn", "imrpn.rc")
 		  , os.path.join(os.getcwd(), "imrpn.rc")
