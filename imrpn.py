@@ -4,7 +4,9 @@ import os, sys, operator, numpy, traceback
 
 sys.path.insert(0, os.path.join(os.getenv("HOME"), ".imrpn"))
 
-import xpa, fits
+import xpa, fits, dotable
+
+vm = dotable.Dotable()
 
 Home = os.getenv("HOME")
 Conf = os.path.join(Home,  ".imrpn")
@@ -19,9 +21,9 @@ def fetch(name): return varib[name]
 # Standard stack ops
 #
 def drop(x): 	  pass
-def dup(x): 	  stak.extend([x, x])
-def swap(x, y):   stak.extend([y, x])
-def rot(x, y, z): stak.extend([z, y, x])
+def dup(x): 	  vm.stak.extend([x, x])
+def swap(x, y):   vm.stak.extend([y, x])
+def rot(x, y, z): vm.stak.extend([z, y, x])
 
 def extparse(file, deffile="", defextn=0):
     x = file.split(",")
@@ -38,7 +40,7 @@ def dot(result):						# Generic output operator
     if ( type(result) == str and result[:4] == "ds9:" ):	# Maybe push the result to ds9?
 	    (target, frame) = extparse(result[4:], "ds9", 1)
 
-	    result = num(stak.pop())
+	    result = num(vm.stak.pop())
 
 	    try:
 		if ( frame != 0 ) :
@@ -72,16 +74,16 @@ def dot(result):						# Generic output operator
 	hdu.writeto(sys.stdout)
 
 def xdotdot(op):
-    while ( len(stak) and len(stak) >= len(op["signature"]) ): pydef(op)
+    while ( len(vm.stak) and len(vm.stak) >= len(op["signature"]) ): pydef(op)
 
 def dotdot() :
-    if ( state ):
-	body.append(ops["(lit)"])
-	body.append(ops[input.pop(0)])
-	body.append(ops["(dotdot)"])
+    if ( vm.state ):
+	vm.body.append(vm.ops["(lit)"])
+	vm.body.append(vm.ops[vm.input.pop(0)])
+	vm.body.append(vm.ops["(dotdot)"])
     else:
-	stak.append(ops[input.pop(0)])
-	pydef(ops["(dotdot)"])
+	vm.stak.append(vm.ops[vm.input.pop(0)])
+	pydef(vm.ops["(dotdot)"])
 
 def python(code) : return eval(code)
  
@@ -151,7 +153,7 @@ def mcode(file): outer(macro(file))
 # Import python code and define the new operators.
 #
 def rpndef(name, func, signature) :
-    ops[name] = { "op" : func, "imm": 0, "signature": signature }
+    vm.ops[name] = { "op" : func, "imm": 0, "signature": signature }
 
 __builtins__.num    = num	# Cast functions must be available in the new module
 __builtins__.any    = any	# so stuff them in __builtins__
@@ -165,107 +167,94 @@ def pydef(dentry):
     operands = []
     for (x, filter) in zip(range(-len(dentry["signature"]), 0, 1)
 			 , dentry["signature"]):
-	operands.append(filter(stak.pop(x)))
+	operands.append(filter(vm.stak.pop(x)))
 
     result = dentry["op"](*operands)
 
     if ( result != None ) :
-	stak.append(result)
+	vm.stak.append(result)
 
 # The inner loop - threads the words of a colon def
 #
 def inner(text):
-    global ip 
-    global code
-
-    ipsave = ip
-    cdsave = code
+    ipsave = vm.ip
+    cdsave = vm.code
 
     ip   = 0
-    code = text
+    vm.code = text
 
-    while ( ip < len(code) ):
-	pydef(code[ip])
-	ip += 1
+    while ( vm.ip < len(vm.code) ):
+	pydef(vm.code[vm.ip])
+	vm.ip += 1
 
-    ip   = ipsave
-    code = cdsave
+    vm.ip   = ipsave
+    vm.code = cdsave
 
 def lit():
-    global ip
-
-    ip += 1
-    return code[ip]
+    vm.ip += 1
+    return vm.code[vm.ip]
 
 def colon():
-    global name, body, state 
-
-    name  = input.pop(0)
-    body  = []
-    state = 1
+    vm.name  = vm.input.pop(0)
+    vm.body  = []
+    vm.state = 1
 
 def semi():
-    global state
+    text = list(vm.body)
 
-    text = list(body)
-
-    ops[name] = { "op": lambda : inner(list(text)), "imm": 0, "signature": [] }
-    state     = 0
+    vm.ops[vm.name] = { "op": lambda : inner(list(text)), "imm": 0, "signature": [] }
+    vm.state     = 0
 
 def comment() :
-    while input.pop(0) != ")" : pass
+    while vm.input.pop(0) != ")" : pass
 
 def quote() :
     word = []
     while 1 :
-    	tok = input.pop(0)
+    	tok = vm.input.pop(0)
         if tok[-1] == "\"" :
     	    word.append(tok[0:-1])
     	    break
     	else:
     	    word.append(tok)
 
-    if state :
-	body.append(ops["(lit)"])
-	body.append(" ".join(word))
+    if vm.state :
+	vm.body.append(vm.ops["(lit)"])
+	vm.body.append(" ".join(word))
     else:
-	stak.append(" ".join(word))
+	vm.stak.append(" ".join(word))
 
 # The outer loop - consumes input and corrosponds to 4th's evaluate
 #
 def outer(Input):
-    global input
+    saved = vm.input
+    vm.input = Input
 
-    saved = input
-    input = Input
+    while ( len(vm.input) ) :
+	word = vm.input.pop(0)
 
-    while ( len(input) ) :
-	word = input.pop(0)
-
-	if word in ops:		# Lookup word
-	    if ( state and not ops[word]["imm"] ):
-		body.append(ops[word])
+	if word in vm.ops:		# Lookup word
+	    if ( vm.state and not vm.ops[word]["imm"] ):
+		vm.body.append(vm.ops[word])
 	    else:
-		pydef(ops[word])
+		pydef(vm.ops[word])
 	else:
-	    if ( state ):
-		body.append(ops["(lit)"])
-		body.append(word)
+	    if ( vm.state ):
+		vm.body.append(vm.ops["(lit)"])
+		vm.body.append(word)
 	    else:
-		stak.append(word)
+		vm.stak.append(word)
 
-    input = saved
+    vm.input = saved
 
 def xdo():
-    body.append(ops[">R"])
-    body.append(ops[">R"])
-    rtrn.append(len(body))
+    vm.body.append(vm.ops[">R"])
+    vm.body.append(vm.ops[">R"])
+    vm.rtrn.append(len(vm.body))
 
 def xloop():
-    global ip
-
-    limit = rtrn[-2]
-    count = rtrn[-1]
+    limit = vm.rtrn[-2]
+    count = vm.rtrn[-1]
 
     if count < limit:
 	count += 1
@@ -273,68 +262,62 @@ def xloop():
 	count -= 1
 
     if ( count != limit ) :
-    	ip = code[ip]
+    	vm.ip = vm.code[ip]
     else:
-	ip += 1
-	rtrn[-1] = count
+	vm.ip += 1
+	vm.rtrn[-1] = count
 
 def xbegin():
-    rtrn.append(len(body))
+    vm.rtrn.append(len(vm.body))
 
 def xrepeat():
-    body.append(ops["(branch)"])
-    body.append(rtrn.pop())
+    vm.body.append(vm.ops["(branch)"])
+    vm.body.append(vm.rtrn.pop())
 
 def xwhile():
-    body.append(ops["(branch1)"])
-    body.append(rtrn.pop())
+    vm.body.append(vm.ops["(branch1)"])
+    vm.body.append(vm.rtrn.pop())
 
 def xuntil():
-    body.append(ops["(branch0)"])
-    body.append(rtrn.pop())
+    vm.body.append(vm.ops["(branch0)"])
+    vm.body.append(vm.rtrn.pop())
 
 def xif():
-    body.append(ops["(branch0)"])
-    rtrn.append(len(body))
-    body.append(0)
+    vm.body.append(vm.ops["(branch0)"])
+    vm.rtrn.append(len(vm.body))
+    vm.body.append(0)
 
 def xelse():
-    body.append(ops["(branch)"])
-    body[rtrn.pop()] = len(body)
-    body.append(0)
+    vm.body.append(vm.ops["(branch)"])
+    vm.body[vm.rtrn.pop()] = len(vm.body)
+    vm.body.append(0)
 
-    rtrn.append(len(body)-1)
+    vm.rtrn.append(len(vm.body)-1)
 
 def xthen():
-    body[rtrn.pop()] = len(body)-1
+    vm.body[vm.rtrn.pop()] = len(vm.body)-1
 
 def xbranch():
-    global ip
-
-    ip = code[ip+1]
+    vm.ip = vm.code[vm.ip+1]
 
 def xbranch0(x):
-    global ip
-
-    ip += 1
+    vm.ip += 1
 
     if x == 0:
-    	ip = code[ip]
+    	vm.ip = vm.code[vm.ip]
 
 
 def xbranch1(x):
-    global ip
-
-    ip += 1
+    vm.ip += 1
 
     if x == 1:
-    	ip = code[ip]
+    	vm.ip = vm.code[vm.ip]
 
 
 def array(x):
     dims = []
     for i in range(int(x)):
-        dims.append(int(stak.pop()))
+        dims.append(int(vm.stak.pop()))
 
     return numpy.zeros(dims)
 
@@ -352,19 +335,17 @@ def pyslice(data, s):
 
     return data[sx]
 
-def mkmark() : rtrn.append(len(stak))
+def mkmark() : vm.rtrn.append(len(vm.stak))
 def mklist() :
-	global stak
-
-	if len(rtrn) == 0 :
+	if len(vm.rtrn) == 0 :
 		f = 0
 	else :
-		f = rtrn.pop()
+		f = vm.rtrn.pop()
 
 
-	l = list(stak[f:])
+	l = list(vm.stak[f:])
 
-	stak = stak[:f]
+	stak = vm.stak[:f]
 
 	return l
 
@@ -375,7 +356,7 @@ def imstack(im, dim) :
 
 	raise Exception("stack dimension must be 1, 2, or 3")
 
-ops = { 
+vm.ops = { 
     "abs":     	{ "op": abs,		"imm" : 0, "signature": [num] },
     "min":     	{ "op": min,		"imm" : 0, "signature": [num] },
     "max":     	{ "op": max,		"imm" : 0, "signature": [num] },
@@ -452,16 +433,16 @@ ops = {
 
 # Main script action
 #
-name  = ""	# Colon definition pieces.
-body  = []
-state = 0
+vm.name  = ""	# Colon definition pieces.
+vm.body  = []
+vm.state = 0
 
-ip   = 0	# Colon execution state
-code = []
+vm.ip   = 0	# Colon execution state
+vm.code = []
 
-input = []	# Machine state
-stak  = []
-rtrn  = []
+vm.input = []	# Machine state
+vm.stak  = []
+vm.rtrn  = []
 
 try : 
     file = os.path.join(Home, ".imrpn", "imrpn-extend.py")
