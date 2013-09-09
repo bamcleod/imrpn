@@ -6,12 +6,13 @@ Example : add two fits images and write the sum to an output file:
 
     john@panic : imrpn a.fits b.fits + > c.fits
 
-
 Unary operators	:	( value ) --> ( result )
 
     abs
     sqrt log log10 exp
     sin cos tan arctan arctan2 atan atan2
+
+    list flat
 
 Binary operators	:	( value, value ) --> ( result )
 
@@ -23,10 +24,11 @@ Reductions :			:	( value, axis ) --> ( result )
     sum prod mean median std var
     amin amax
 
-Random distribution values 		:	( center, scale ) --> ( result )
+Random distribution values 	:	
 
-    normal
-            
+    normal			: 	( center, scale, shape ) --> ( result )
+    poission			: 	( lam, shape ) --> ( result )
+
 Stack operations :
             
     drop			:	( value ) --> (  )

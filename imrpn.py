@@ -21,6 +21,13 @@ def dup(x): 	  vm.stak.extend([x, x]) 			#
 def swap(x, y):   vm.stak.extend([y, x])
 def rot(x, y, z): vm.stak.extend([z, y, x])
 
+def getshape(x)    : return list(x.shape)
+def setshape(x, y) : x.shape = y; return x
+
+def flatten(x)	   : vm.stak.extend(x)
+
+def normal(center, width, shape): return numpy.random.normal(center, width , shape)
+def poisson(lam, shape): 	  return numpy.random.poisson(lam, shape)
 
 def extparse(file, deffile="", defextn=0):			# Helper to parse FITS,extn
     x = file.split(",")
@@ -67,7 +74,6 @@ def dot(result):						# Generic output operator
 
     elif sys.stdout.isatty() : 					# Last chance, write FITS to stdout?
 	sys.stderr.write("Refuse to write image to a tty.\n")
-	exit(1)
 
     else:
 	try:
@@ -309,12 +315,7 @@ def xbranch1(x):
     	vm.ip = vm.code[vm.ip]
 
 
-def array(x):
-    dims = []
-    for i in range(int(x)):
-        dims.append(int(vm.stak.pop()))
-
-    return numpy.zeros(dims)
+def array(x): 	return numpy.zeros(x)
 
 def pyslice(data, s):
     sx = []
@@ -376,7 +377,12 @@ vm.ops = {
     "median":   { "op": numpy.median,	"imm" : 0, "signature": [num, Int]},
     "std":      { "op": numpy.std,	"imm" : 0, "signature": [num, Int]},
     "var":      { "op": numpy.var,	"imm" : 0, "signature": [num, Int]},
-    "normal":  	{ "op": numpy.random.normal,"imm" : 0, "signature": [num, num]},
+
+    "normal":  	{ "op": normal, 	"imm" : 0, "signature": [num, num, num]},
+    "poisson": 	{ "op": numpy.random.poisson,"imm" : 0, "signature": [num, num]},
+
+    "shape":	{ "op": getshape,	"imm" : 0, "signature": [num] },
+    "shape!":	{ "op": setshape,	"imm" : 0, "signature": [num, num] },
 
     "+": 	{ "op": operator.add,	"imm" : 0, "signature": [num, num] },
     "-": 	{ "op": operator.sub,	"imm" : 0, "signature": [num, num] },
@@ -430,6 +436,10 @@ vm.ops = {
     "stack":    { "op": imstack,	"imm" : 0, "signature": [num, int] },
     "[]": 	{ "op": pyslice,	"imm" : 0, "signature": [num, str] },
     "array":    { "op": array,  	"imm" : 0, "signature": [num] },
+
+    "list":	{ "op": list,		"imm" : 0, "signature": [any] },
+    "flat":	{ "op": flatten,	"imm" : 0, "signature": [any] },
+
 }
 
 # Main script action
