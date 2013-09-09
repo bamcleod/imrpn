@@ -11,21 +11,18 @@ vm = dotable.Dotable()
 Home = os.getenv("HOME")
 Conf = os.path.join(Home,  ".imrpn")
 
-# Fetch and Store variables
-#
-vm.varib = {}
-
+vm.varib = {} 							# Fetch and Store variables
+								#
 def store(value, name): vm.varib[name] = value
 def fetch(name): return vm.varib[name]
 
-# Standard stack ops
-#
-def drop(x): 	  pass
-def dup(x): 	  vm.stak.extend([x, x])
+def drop(x): 	  pass 						# Standard stack ops
+def dup(x): 	  vm.stak.extend([x, x]) 			#
 def swap(x, y):   vm.stak.extend([y, x])
 def rot(x, y, z): vm.stak.extend([z, y, x])
 
-def extparse(file, deffile="", defextn=0):
+
+def extparse(file, deffile="", defextn=0):			# Helper to parse FITS,extn
     x = file.split(",")
 
     if ( x[0] != "" ) : file = x[0]
@@ -93,7 +90,7 @@ def dotdot() :
 	vm.stak.append(vm.ops[vm.input.pop(0)])
 	pydef(vm.ops["(dotdot)"])
 
-def python(code) : return eval(code)
+def python(code) : return eval(code)				# Run python string from the stack.
  
 def Int(x):
     if type(x) == str and x == "None" :
@@ -149,18 +146,14 @@ def num(x) :
 
     return x
 
-# Return the contents of a file.
-#
-def cat(file) : fp = open(file);  data = fp.read();  fp.close();  return data
+def cat(file) : 						# Return the contents of a file.
+    fp = open(file);  data = fp.read();  fp.close();
 
-# Run a file as input.  Can be used to read ":" definitions
-#
-def macro(file): return cat(file).split()
-def mcode(file): outer(macro(file))
+    return data
 
-# Import python code and define the new operators.
-#
-def rpndef(name, func, signature) :
+def macro(file): outer(cat(file).split())			# Run a file as input.
+
+def rpndef(name, func, signature) : 				# Import python code and define the new operators.
     vm.ops[name] = { "op" : func, "imm": 0, "signature": signature }
 
 __builtins__.num    = num	# Cast functions must be available in the new module
@@ -169,9 +162,7 @@ __builtins__.rpndef = rpndef
 
 def pcode(file): __import__(file).init()
 
-# Run a python def off the stack
-#
-def pydef(dentry):
+def pydef(dentry): 						# Run a python def off the stack
     operands = []
     for ( x, cast ) in zip(range(-len(dentry["signature"]), 0, 1)	# Pop each arg from the stack
 			 , dentry["signature"]): 			# in reverse order.
@@ -182,9 +173,8 @@ def pydef(dentry):
     if ( result != None ) :
 	vm.stak.append(result)
 
-# The inner loop - threads the words of a colon def
-#
-def inner(text):
+
+def inner(text): 						# The inner loop - threads the words of a colon def
     ipsave = vm.ip
     cdsave = vm.code
 
@@ -208,10 +198,8 @@ def colon():
     vm.state = 1
 
 def semi():
-    text = list(vm.body)
-
-    vm.ops[vm.name] = { "op": lambda : inner(list(text)), "imm": 0, "signature": [] }
-    vm.state     = 0
+    vm.ops[vm.name] = { "op": lambda text=list(vm.body): inner(text), "imm": 0, "signature": [] }
+    vm.state = 0
 
 def comment() :
     while vm.input.pop(0) != ")" : pass
@@ -238,7 +226,7 @@ def outer(Input):
     saved = vm.input
     vm.input = Input
 
-    while ( len(vm.input) ) :
+    while len(vm.input) :
 	word = vm.input.pop(0)
 
 	if word in vm.ops:		# Lookup word
@@ -314,7 +302,6 @@ def xbranch0(x):
     if x == 0:
     	vm.ip = vm.code[vm.ip]
 
-
 def xbranch1(x):
     vm.ip += 1
 
@@ -353,7 +340,7 @@ def mklist() :
 
 	l = list(vm.stak[f:])
 
-	stak = vm.stak[:f]
+	vm.stak = vm.stak[:f]
 
 	return l
 
@@ -365,9 +352,6 @@ def imstack(im, dim) :
 	raise Exception("stack dimension must be 1, 2, or 3")
 
 vm.ops = { 
-    "abs":     	{ "op": abs,		"imm" : 0, "signature": [num] },
-    "min":     	{ "op": min,		"imm" : 0, "signature": [num] },
-    "max":     	{ "op": max,		"imm" : 0, "signature": [num] },
     "sin":     	{ "op": numpy.sin,	"imm" : 0, "signature": [num] },
     "cos":     	{ "op": numpy.cos,	"imm" : 0, "signature": [num] },
     "tan":     	{ "op": numpy.tan,	"imm" : 0, "signature": [num] },
@@ -380,6 +364,12 @@ vm.ops = {
     "log10":   	{ "op": numpy.log10,	"imm" : 0, "signature": [num] },
     "exp":    	{ "op": numpy.exp,	"imm" : 0, "signature": [num] },
 
+    "abs":     	{ "op": abs,		"imm" : 0, "signature": [num]      },
+    "min":     	{ "op": min,		"imm" : 0, "signature": [num, num] },
+    "max":     	{ "op": max,		"imm" : 0, "signature": [num, num] },
+
+    "amin":    	{ "op": numpy.amin,	"imm" : 0, "signature": [num, Int] },
+    "amax":    	{ "op": numpy.amax,	"imm" : 0, "signature": [num, Int] },
     "sum":    	{ "op": numpy.sum,	"imm" : 0, "signature": [num, Int] },
     "prod":    	{ "op": numpy.prod,	"imm" : 0, "signature": [num, Int] },
     "mean":    	{ "op": numpy.mean,	"imm" : 0, "signature": [num, Int] },
@@ -411,7 +401,7 @@ vm.ops = {
     "@":	{ "op": fetch,		"imm" : 0, "signature": [str] },
 
     ".py":      { "op": pcode,		"imm" : 0, "signature": [str] },
-    ".rc":      { "op": mcode,		"imm" : 0, "signature": [str] },
+    ".rc":      { "op": macro,		"imm" : 0, "signature": [str] },
     "python":   { "op": python,		"imm" : 0, "signature": [str] },
     ":": 	{ "op": colon,		"imm" : 0, "signature": [] },
     ";": 	{ "op": semi,		"imm" : 1, "signature": [] },
@@ -433,6 +423,9 @@ vm.ops = {
     "(branch1)":{ "op": xbranch1,       "imm" : 0, "signature": [num] },
     "[":	{ "op": mkmark,		"imm" : 0, "signature": [] },
     "]":	{ "op": mklist,		"imm" : 0, "signature": [] },
+
+
+    "(":	{ "op": comment,	"imm" : 1, "signature": [] },
 
     "stack":    { "op": imstack,	"imm" : 0, "signature": [num, int] },
     "[]": 	{ "op": pyslice,	"imm" : 0, "signature": [num, str] },
@@ -461,11 +454,14 @@ except:
     pass
 
 start = sorted(set([os.path.join(Home, ".imrpn", "imrpn.rc")
-		  , os.path.join(os.getcwd(), "imrpn.rc")
 		  , os.path.join(os.getcwd(), ".imrpn")]))
 
 for file in start :
-    if os.path.exists(file) and os.path.isfile(file) : mcode(file)
+    if os.path.exists(file) and os.path.isfile(file) : macro(file)
 
-outer(sys.argv[1:] + ["..", "."])	# Evaluate the command line & Dump the stack.
+if len(sys.argv) == 1:
+    print cat(os.path.join(Home, ".imrpn", "README"))
+else:
+    outer(sys.argv[1:] + ["..", "."])			# Evaluate the command line & Dump the stack.
+
 

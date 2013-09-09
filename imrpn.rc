@@ -1,4 +1,7 @@
 
+( Its easy to add a few short python evaluations
+  to make some constants )
+
 : e	" numpy.e     "	python ;
 : pi	" numpy.pi    "	python ;
 : 2pi	" numpy.pi * 2" python ;

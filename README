@@ -7,22 +7,23 @@ Example : add two fits images and write the sum to an output file:
     john@panic : imrpn a.fits b.fits + > c.fits
 
 
-Predefined unary operators	:	( value ) --> ( result )
+Unary operators	:	( value ) --> ( result )
 
-    abs min max 
+    abs
     sqrt log log10 exp
     sin cos tan arctan arctan2 atan atan2
 
-Predefined binary operators	:	( value, value ) --> ( result )
+Binary operators	:	( value, value ) --> ( result )
 
     + - * / ** ^ 
-    and	or not 	
+    and	or not min max
 
-Redustions :			:	( value, axis ) --> ( result )
+Reductions :			:	( value, axis ) --> ( result )
 
     sum prod mean median std var
+    amin amax
 
-Distribution values 		:	( center, scale ) --> ( result )
+Random distribution values 		:	( center, scale ) --> ( result )
 
     normal
             
@@ -35,9 +36,9 @@ Stack operations :
 
 Data Array operators : 
 
-    []
-    stack
-    array
+    []				:	( v1, v2 )	--> ( result )
+    stack			:
+    array			:
 
 Output :
 

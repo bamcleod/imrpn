@@ -38,6 +38,10 @@ Test DotDot;	CompareEval "$imrpn 1 2 3"	"3
 
 Test pi;	CompareEval "$imrpn pi"	3.14159265359
 
+Test min;	CompareEval "$imrpn pi 1 min"	
+Test max;	CompareEval "$imrpn pi 1 max"	3.14159265359
+Test abs;	CompareEval "$imrpn pi -1 * abs"	3.14159265359
+
 TestDone
 
 
