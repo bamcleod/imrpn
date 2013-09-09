@@ -297,6 +297,6 @@ def open(fp) :
 
     return headers
 
-def PrimaryHDU(fp):
-	return hdu(fp)
+def PrimaryHDU(fp, header=None):
+	return hdu(fp, cards=header)
 

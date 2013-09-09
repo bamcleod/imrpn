@@ -173,11 +173,11 @@ def pcode(file): __import__(file).init()
 #
 def pydef(dentry):
     operands = []
-    for (x, filter) in zip(range(-len(dentry["signature"]), 0, 1)
-			 , dentry["signature"]):
-	operands.append(filter(vm.stak.pop(x)))
+    for ( x, cast ) in zip(range(-len(dentry["signature"]), 0, 1)	# Pop each arg from the stack
+			 , dentry["signature"]): 			# in reverse order.
+	operands.append(cast(vm.stak.pop(x)))				# Cast the stak value to the expected type.
 
-    result = dentry["op"](*operands)
+    result = dentry["op"](*operands)					# Make the call.
 
     if ( result != None ) :
 	vm.stak.append(result)
