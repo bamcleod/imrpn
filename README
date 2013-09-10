@@ -6,7 +6,8 @@ Example : add two fits images and write the sum to an output file:
 
     john@panic : imrpn a.fits b.fits + > c.fits
 
-Unary operators	:	( value ) --> ( result )
+
+Unary operators			:	( value  	--  result 	)
 
     abs
     sqrt log log10 exp
@@ -14,33 +15,33 @@ Unary operators	:	( value ) --> ( result )
 
     list flat
 
-Binary operators	:	( value, value ) --> ( result )
+Binary operators		:	( value, value  --  result 	)
 
     + - * / ** ^ 
     and	or not min max
 
-Reductions :			:	( value, axis ) --> ( result )
+Reductions :			:	( value, axis   --  result 	)
 
     sum prod mean median std var
     amin amax
 
 Random distribution values 	:	
 
-    normal			: 	( center, scale, shape ) --> ( result )
-    poission			: 	( lam, shape ) --> ( result )
+    normal			: 	( center, scale, shape  --  result )
+    poission			: 	( lam, shape  	--  result 	)
 
 Stack operations :
             
-    drop			:	( value ) --> (  )
-    dup 			:	( value ) --> ( value, value )
-    swap			:	( v1, v2 ) --> ( v2, v1 )
-    rot				:	( v1 , v2, v3 ) --> ( v3, v1, v2 ) 
+    drop			:	( value  	--   		)
+    dup 			:	( v1  		--  v1, v1 	)
+    swap			:	( v1, v2  	--  v2, v1 	)
+    rot				:	( v1 , v2, v3   --  v3, v1, v2 	) 
 
 Data Array operators : 
 
-    []				:	( v1, v2 )	--> ( result )
-    stack			:
-    array			:
+    []				:	( v1, v2 	-- result 	)
+    stack			:	( list		-- result	)
+    array			:	( shape 	-- result 	)
 
 Output :
 
