@@ -11,7 +11,9 @@ vm = dotable.Dotable()
 Home = os.getenv("HOME")
 Conf = os.path.join(Home,  ".imrpn")
 
-vm.varib = {} 							# Fetch and Store variables
+vm.varib   = {} 						# Fetch and Store variables
+vm.primary = True
+
 								#
 def store(value, name): vm.varib[name] = value
 def fetch(name): return vm.varib[name]
@@ -57,7 +59,8 @@ def dot(result):						# Generic output operator
 	   	exit(1)
 
     	    try:
-		hdu = fits.PrimaryHDU(result)
+		hdu = fits.hdu(result, vm.primary)
+		vm.primary = False
     	    except fits.Huh:
 	    	print "imrpn: cannot convert to FITS: ", result
 		exit(1)
@@ -74,10 +77,15 @@ def dot(result):						# Generic output operator
 
     elif sys.stdout.isatty() : 					# Last chance, write FITS to stdout?
 	sys.stderr.write("Refuse to write image to a tty.\n")
+	print type(result)
+	print result.dtype
+	print result
+	
 
     else:
 	try:
-	    hdu = fits.PrimaryHDU(result)
+	    hdu = fits.hdu(result, vm.primary)
+	    vm.primary = False
 	except fits.Huh:
 	    print "imrpn: cannot convert to FITS: ", result
 	    exit(1)
@@ -315,7 +323,8 @@ def xbranch1(x):
     	vm.ip = vm.code[vm.ip]
 
 
-def array(x): 	return numpy.zeros(x)
+def zeros(x): 	    return numpy.zeros(x)
+def array(x, type): return numpy.zeros(x, type)
 
 def pyslice(data, s):
     sx = []
@@ -435,11 +444,11 @@ vm.ops = {
 
     "stack":    { "op": imstack,	"imm" : 0, "signature": [num, int] },
     "[]": 	{ "op": pyslice,	"imm" : 0, "signature": [num, str] },
-    "array":    { "op": array,  	"imm" : 0, "signature": [num] },
+    "array":    { "op": array,  	"imm" : 0, "signature": [num, str] },
+    "zeros":    { "op": zeros,  	"imm" : 0, "signature": [num] },
 
     "list":	{ "op": list,		"imm" : 0, "signature": [any] },
     "flat":	{ "op": flatten,	"imm" : 0, "signature": [any] },
-
 }
 
 # Main script action
