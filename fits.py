@@ -109,9 +109,10 @@ class header(object) :
 
 	    self.card.append(fmtcard("NAXIS", len(naxis)))
 
-	    for i, j in enumerate(range(len(naxis)-1, -1, -1)) :
+	    #for i, j in enumerate(range(len(naxis)-1, -1, -1)) :
+	    for i in range(0, len(naxis)) :
 		axis = "NAXIS" + str(i+1)
-		self.card.append(fmtcard(axis, naxis[j]))
+		self.card.append(fmtcard(axis, naxis[i]))
 
 	    self.ncard     = len(self.card)+1
 	    self.headbloks = ((self.ncard*80)+(2880-1))/2880

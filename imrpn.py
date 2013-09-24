@@ -39,7 +39,20 @@ def extparse(file, deffile="", defextn=0):			# Helper to parse FITS,extn
     if x[0] != "" : file = x[0]
     else: 	    file = deffile
 
-    if len(x) == 2 : extn  = int(x[1])
+    if len(x) == 2 :
+	y = x[1].split(":")
+
+	if len(y) == 2 :
+	    start = None
+	    ends  = None
+
+	    if y[0] != "" : start = int(y[0])
+	    if y[1] != "" : ends  = int(y[1])
+
+	    extn = slice(start, ends)
+	else:
+	    extn  = int(x[1])
+
     else: 	     extn  = defextn
 
     return (file, extn)
@@ -81,6 +94,7 @@ def dot(result):						# Generic output operator
 	sys.stderr.write("Refuse to write image to a tty.\n")
 	print type(result)
 	print result.dtype
+	print result.shape
 	print result
 	
 
@@ -150,7 +164,12 @@ def num(x) :
 	    (file, extn) = extparse(x)
 
 	    try:
-		x = fits.open(file)[extn].data
+		
+		x = fits.open(file)
+
+		if len(x) == 1 :  x = x[extn].data
+		else :
+		    x = numpy.dstack([hdu.data for hdu in x[extn]])
 
 		if x == None :
 		    print "imrpn: hdu has no data : " + x
