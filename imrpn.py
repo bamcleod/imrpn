@@ -6,7 +6,9 @@ sys.path.insert(0, os.path.join(os.getenv("HOME"), ".imrpn"))
 
 import xpa, fits, dotable
 
-vm = dotable.Dotable()
+Dot = dotable.Dotable
+
+vm = Dot()
 
 Home = os.getenv("HOME")
 Conf = os.path.join(Home,  ".imrpn")
@@ -19,9 +21,9 @@ def store(value, name): vm.varib[name] = value
 def fetch(name): return vm.varib[name]
 
 def drop(x): 	  pass 						# Standard stack ops
-def dup(x): 	  vm.stak.extend([x, x]) 			#
-def swap(x, y):   vm.stak.extend([y, x])
-def rot(x, y, z): vm.stak.extend([z, y, x])
+def dup(x): 	  vm.stak.extend([Dot(value=x), Dot(value=x)]) 			#
+def swap(x, y):   vm.stak.extend([Dot(value=y), Dot(value=x)])
+def rot(x, y, z): vm.stak.extend([Dot(value=z), Dot(value=y), Dot(value=x)])
 
 def getshape(x)    : return list(x.shape)
 def setshape(x, y) : x.shape = y; return x
@@ -34,16 +36,16 @@ def poisson(lam, shape): 	  return numpy.random.poisson(lam, shape)
 def extparse(file, deffile="", defextn=0):			# Helper to parse FITS,extn
     x = file.split(",")
 
-    if ( x[0] != "" ) : file = x[0]
-    else: 		file = deffile
+    if x[0] != "" : file = x[0]
+    else: 	    file = deffile
 
-    if ( len(x) == 2 ): extn  = int(x[1])
-    else: 		extn  = defextn
+    if len(x) == 2 : extn  = int(x[1])
+    else: 	     extn  = defextn
 
     return (file, extn)
 
 def dot(result):						# Generic output operator
-    if ( type(result) == str and result[:4] == "ds9:" ):	# Maybe push the result to ds9?
+    if type(result) == str and result[:4] == "ds9:" :		# Maybe push the result to ds9?
 	    (target, frame) = extparse(result[4:], "ds9", 0)
 
 	    result = num(vm.stak.pop())
@@ -93,7 +95,7 @@ def dot(result):						# Generic output operator
 	hdu.writeto(sys.stdout)
 
 def xdotdot(op):
-    while ( len(vm.stak) and len(vm.stak) >= len(op["signature"]) ): pydef(op)
+    while len(vm.stak) and len(vm.stak) >= len(op["signature"]) : pydef(op)
 
 def dotdot() :
     if ( vm.state ):
@@ -101,7 +103,7 @@ def dotdot() :
 	vm.body.append(vm.ops[vm.input.pop(0)])
 	vm.body.append(vm.ops["(dotdot)"])
     else:
-	vm.stak.append(vm.ops[vm.input.pop(0)])
+	vm.stak.append(dotable.Dotable(value=vm.ops[vm.input.pop(0)]))
 	pydef(vm.ops["(dotdot)"])
 
 def python(code) : return eval(code)				# Run python string from the stack.
@@ -123,7 +125,7 @@ def num(x) :
 	except ValueError:
 	    pass
 
-	if ( x[:4] == "ds9:" ):
+	if x[:4] == "ds9:" :
 	    (target, frame) = extparse(x[4:], "ds9", 0)
 
 	    if ( frame != 0 ) :
@@ -131,14 +133,14 @@ def num(x) :
 
 	    x = xpa.xpa(target).get("file").strip()
 
-	    if ( x == "" ):
+	    if x == "" :
 		print "imrpn: cannot get file name from ds9: " + target + "," + str(frame)
 		exit(1)
 
-	    if ( x == "stdin" ):
+	    if x == "stdin" :
 		return fits.open(xpa.xpa(target).get("fits", xpa.xpa.fp))[0].data
 
-	if ( x == "stdin" ):
+	if x == "stdin" :
 	    try:
 	        x = fits.open(sys.stdin)[0].data
 	    except IOError:
@@ -170,8 +172,8 @@ def macro(file): outer(cat(file).split())			# Run a file as input.
 def rpndef(name, func, signature) : 				# Import python code and define the new operators.
     vm.ops[name] = { "op" : func, "imm": 0, "signature": signature }
 
-__builtins__.num    = num	# Cast functions must be available in the new module
-__builtins__.any    = any	# so stuff them in __builtins__
+__builtins__.num    = num					# Cast functions must be available in the new module
+__builtins__.any    = any					# so stuff them in __builtins__
 __builtins__.rpndef = rpndef
 
 def pcode(file): __import__(file).init()
@@ -180,22 +182,21 @@ def pydef(dentry): 						# Run a python def off the stack
     operands = []
     for ( x, cast ) in zip(range(-len(dentry["signature"]), 0, 1)	# Pop each arg from the stack
 			 , dentry["signature"]): 			# in reverse order.
-	operands.append(cast(vm.stak.pop(x)))				# Cast the stak value to the expected type.
+	operands.append(cast(vm.stak.pop(x).value))			# Cast the stak value to the expected type.
 
     result = dentry["op"](*operands)					# Make the call.
 
-    if ( result != None ) :
-	vm.stak.append(result)
-
+    if result != None :
+	vm.stak.append(Dot(value=result))
 
 def inner(text): 						# The inner loop - threads the words of a colon def
     ipsave = vm.ip
     cdsave = vm.code
 
-    ip   = 0
+    vm.ip   = 0
     vm.code = text
 
-    while ( vm.ip < len(vm.code) ):
+    while vm.ip < len(vm.code) :
 	pydef(vm.code[vm.ip])
 	vm.ip += 1
 
@@ -232,7 +233,7 @@ def quote() :
 	vm.body.append(vm.ops["(lit)"])
 	vm.body.append(" ".join(word))
     else:
-	vm.stak.append(" ".join(word))
+	vm.stak.append(Dot(value=" ".join(word)))
 
 # The outer loop - consumes input and corrosponds to 4th's evaluate
 #
@@ -253,7 +254,7 @@ def outer(Input):
 		vm.body.append(vm.ops["(lit)"])
 		vm.body.append(word)
 	    else:
-		vm.stak.append(word)
+		vm.stak.append(Dot(value=word))
 
     vm.input = saved
 
@@ -271,7 +272,7 @@ def xloop():
     else:
 	count -= 1
 
-    if ( count != limit ) :
+    if count != limit :
     	vm.ip = vm.code[ip]
     else:
 	vm.ip += 1
@@ -346,7 +347,6 @@ def mklist() :
 		f = 0
 	else :
 		f = vm.rtrn.pop()
-
 
 	l = list(vm.stak[f:])
 
@@ -482,5 +482,4 @@ if len(sys.argv) == 1:
     print cat(os.path.join(Home, ".imrpn", "README"))
 else:
     outer(sys.argv[1:] + ["..", "."])			# Evaluate the command line & Dump the stack.
-
 
