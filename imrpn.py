@@ -61,7 +61,7 @@ def dot(result):						# Generic output operator
     if type(result) == str and result[:4] == "ds9:" :		# Maybe push the result to ds9?
 	    (target, frame) = extparse(result[4:], "ds9", 0)
 
-	    result = num(vm.stak.pop())
+	    result = num(vm.stak.pop()).value
 
 	    try:
 		if ( frame != 0 ) :
@@ -348,7 +348,8 @@ def array(x, type): return numpy.zeros(x, type)
 
 def pyslice(data, s):
     sx = []
-    for dim in s.split(",") :
+    for dim in s :
+	print "DIM: ", dim
 	ss = []
 	for x in dim.split(":") :
 	    if x == '':
@@ -462,7 +463,7 @@ vm.ops = {
     "(":	{ "op": comment,	"imm" : 1, "signature": [] },
 
     "stack":    { "op": imstack,	"imm" : 0, "signature": [num, int] },
-    "[]": 	{ "op": pyslice,	"imm" : 0, "signature": [num, str] },
+    "[]": 	{ "op": pyslice,	"imm" : 0, "signature": [num, any] },
     "array":    { "op": array,  	"imm" : 0, "signature": [num, str] },
     "zeros":    { "op": zeros,  	"imm" : 0, "signature": [num] },
 

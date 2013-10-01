@@ -233,7 +233,7 @@ class hdu(header) :
 		if swapped() :
 		    self.data.byteswap(True)
 
-		if self.bitpix == 16 and self.bzero == -32768 :
+		if self.bitpix == 16 and self.bzero == 32768 :
 		    self.data *= self.bscale
 		    self.data += self.bzero
 		    self.data.dtype = ">u2"
@@ -258,7 +258,7 @@ class hdu(header) :
 
 	super(hdu, self).write(other)
 
-	if self.bitpix == 16 and self.bzero == -32768 :
+	if self.bitpix == 16 and self.bzero == 32768 :
 	    self.data /= self.bscale
 	    self.data -= self.bzero
 
