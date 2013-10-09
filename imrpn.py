@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 #
 import os, sys, operator, numpy
 
@@ -117,7 +117,7 @@ def dotdot() :
 	vm.body.append(vm.ops[vm.input.pop(0)])
 	vm.body.append(vm.ops["(dotdot)"])
     else:
-	vm.stak.append(dotable.Dotable(value=vm.ops[vm.input.pop(0)]))
+	vm.stak.append(Dot(value=vm.ops[vm.input.pop(0)]))
 	pydef(vm.ops["(dotdot)"])
 
 def python(code) : return eval(code)				# Run python string from the stack.
@@ -167,7 +167,7 @@ def num(x) :
 		
 		x = fits.open(file)
 
-		if len(x) == 1 :  x = x[extn].data
+		if type(extn) == int :  x = x[extn].data
 		else :
 		    x = numpy.dstack([hdu.data for hdu in x[extn]])
 
@@ -377,7 +377,7 @@ def mklist() :
 	else :
 		f = vm.rtrn.pop()
 
-	l = list(vm.stak[f:])
+	l = [x.value for x in vm.stak[f:]]
 
 	vm.stak = vm.stak[:f]
 
