@@ -344,7 +344,17 @@ def xbranch1(x):
 
 
 def zeros(x): 	    return numpy.zeros(x)
-def array(x, type): return numpy.zeros(x, type)
+def array(x, type): 
+    print x
+    if type ==  16 : type = "short"
+    if type == -16 : type = "ushort"
+    if type ==  32 : type = "int"
+    if type ==  64 : type = "long"
+    if type == -32 : type = "float"
+    if type == -64 : type = "double"
+
+    return numpy.zeros(x, type)
+
 
 def pyslice(data, s):
     sx = []
