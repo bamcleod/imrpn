@@ -109,9 +109,10 @@ class header(object) :
 
 	    self.card.append(fmtcard("NAXIS", len(naxis)))
 
-	    for i, j in enumerate(range(len(naxis)-1, -1, -1)) :
+	    #for i, j in enumerate(range(len(naxis)-1, -1, -1)) :
+	    for i in range(0, len(naxis)) :
 		axis = "NAXIS" + str(i+1)
-		self.card.append(fmtcard(axis, naxis[j]))
+		self.card.append(fmtcard(axis, naxis[i]))
 
 	    self.ncard     = len(self.card)+1
 	    self.headbloks = ((self.ncard*80)+(2880-1))/2880
@@ -232,7 +233,7 @@ class hdu(header) :
 		if swapped() :
 		    self.data.byteswap(True)
 
-		if self.bitpix == 16 and self.bzero == -32768 :
+		if self.bitpix == 16 and self.bzero == 32768 :
 		    self.data *= self.bscale
 		    self.data += self.bzero
 		    self.data.dtype = ">u2"
@@ -257,7 +258,7 @@ class hdu(header) :
 
 	super(hdu, self).write(other)
 
-	if self.bitpix == 16 and self.bzero == -32768 :
+	if self.bitpix == 16 and self.bzero == 32768 :
 	    self.data /= self.bscale
 	    self.data -= self.bzero
 
@@ -296,7 +297,4 @@ def open(fp) :
 	fp.close()
 
     return headers
-
-def PrimaryHDU(fp, header=None):
-	return hdu(fp, cards=header)
 

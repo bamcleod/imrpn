@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 #
 import os, sys, operator, numpy
 
@@ -13,7 +13,9 @@ vm = Dot()
 Home = os.getenv("HOME")
 Conf = os.path.join(Home,  ".imrpn")
 
-vm.varib = {} 							# Fetch and Store variables
+vm.varib   = {} 						# Fetch and Store variables
+vm.primary = True
+
 								#
 def store(value, name): vm.varib[name] = value
 def fetch(name): return vm.varib[name]
@@ -37,7 +39,20 @@ def extparse(file, deffile="", defextn=0):			# Helper to parse FITS,extn
     if x[0] != "" : file = x[0]
     else: 	    file = deffile
 
-    if len(x) == 2 : extn  = int(x[1])
+    if len(x) == 2 :
+	y = x[1].split(":")
+
+	if len(y) == 2 :
+	    start = None
+	    ends  = None
+
+	    if y[0] != "" : start = int(y[0])
+	    if y[1] != "" : ends  = int(y[1])
+
+	    extn = slice(start, ends)
+	else:
+	    extn  = int(x[1])
+
     else: 	     extn  = defextn
 
     return (file, extn)
@@ -46,7 +61,7 @@ def dot(result):						# Generic output operator
     if type(result) == str and result[:4] == "ds9:" :		# Maybe push the result to ds9?
 	    (target, frame) = extparse(result[4:], "ds9", 0)
 
-	    result = num(vm.stak.pop())
+	    result = num(vm.stak.pop()).value
 
 	    try:
 		if ( frame != 0 ) :
@@ -59,7 +74,8 @@ def dot(result):						# Generic output operator
 	   	exit(1)
 
     	    try:
-		hdu = fits.PrimaryHDU(result)
+		hdu = fits.hdu(result, vm.primary)
+		vm.primary = False
     	    except fits.Huh:
 	    	print "imrpn: cannot convert to FITS: ", result
 		exit(1)
@@ -76,10 +92,16 @@ def dot(result):						# Generic output operator
 
     elif sys.stdout.isatty() : 					# Last chance, write FITS to stdout?
 	sys.stderr.write("Refuse to write image to a tty.\n")
+	print type(result)
+	print result.dtype
+	print result.shape
+	print result
+	
 
     else:
 	try:
-	    hdu = fits.PrimaryHDU(result)
+	    hdu = fits.hdu(result, vm.primary)
+	    vm.primary = False
 	except fits.Huh:
 	    print "imrpn: cannot convert to FITS: ", result
 	    exit(1)
@@ -95,7 +117,7 @@ def dotdot() :
 	vm.body.append(vm.ops[vm.input.pop(0)])
 	vm.body.append(vm.ops["(dotdot)"])
     else:
-	vm.stak.append(dotable.Dotable(value=vm.ops[vm.input.pop(0)]))
+	vm.stak.append(Dot(value=vm.ops[vm.input.pop(0)]))
 	pydef(vm.ops["(dotdot)"])
 
 def python(code) : return eval(code)				# Run python string from the stack.
@@ -109,6 +131,8 @@ def Int(x):
 def Str(x): return  ( x, None )
 def Any(x): return  ( x, None )
 def Num(x) :
+    hdu = None
+
     if type(x) == list :
 	return ( map(num, x), None )
 
@@ -146,8 +170,11 @@ def Num(x) :
 	    (file, extn) = extparse(x)
 
 	    try:
-		hdu = fits.open(file)[extn]
-		x   = hdu.data
+		x = fits.open(file)
+
+		if type(extn) == int :  x = x[extn].data
+		else :
+		    x = numpy.dstack([hdu.data for hdu in x[extn]])
 
 		if x == None :
 		    print "imrpn: hdu has no data : " + x
@@ -336,11 +363,13 @@ def xbranch1(x):
     	vm.ip = vm.code[vm.ip]
 
 
-def array(x): 	return numpy.zeros(x)
+def zeros(x): 	    return numpy.zeros(x)
+def array(x, type): return numpy.zeros(x, type)
 
 def pyslice(data, s):
     sx = []
-    for dim in s.split(",") :
+    for dim in s :
+	print "DIM: ", dim
 	ss = []
 	for x in dim.split(":") :
 	    if x == '':
@@ -359,7 +388,7 @@ def mklist() :
 	else :
 		f = vm.rtrn.pop()
 
-	l = list(vm.stak[f:])
+	l = [x.value for x in vm.stak[f:]]
 
 	vm.stak = vm.stak[:f]
 
@@ -456,6 +485,7 @@ vm.ops = {
     "stack":    { "op": imstack,	"imm" : 0, "signature": [Num, Int] },
     "[]": 	{ "op": pyslice,	"imm" : 0, "signature": [Num, Str] },
     "array":    { "op": array,  	"imm" : 0, "signature": [Num] },
+    "zeros":    { "op": zeros,  	"imm" : 0, "signature": [Num] },
 
     "list":	{ "op": list,		"imm" : 0, "signature": [Any] },
     "flat":	{ "op": flatten,	"imm" : 0, "signature": [Any] },
