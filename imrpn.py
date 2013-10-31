@@ -532,7 +532,7 @@ vm.ops = {
 
     "stack":    { "op": imstack,	"imm" : 0, "signature": [Num, Int] },
     "[]": 	{ "op": pyslice,	"imm" : 0, "signature": [Num, Str] },
-    "array":    { "op": array,  	"imm" : 0, "signature": [Num] },
+    "array":    { "op": array,  	"imm" : 0, "signature": [Num, Any] },
     "zeros":    { "op": zeros,  	"imm" : 0, "signature": [Num] },
 
     "list":	{ "op": list,		"imm" : 0, "signature": [Any] },
