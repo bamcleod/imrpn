@@ -106,14 +106,15 @@ def Int(x):
 	
     return int(x)
 
-def any(x): return     x
-def num(x) :
+def Str(x): return  ( x, None )
+def Any(x): return  ( x, None )
+def Num(x) :
     if type(x) == list :
-	return map(num, x)
+	return ( map(num, x), None )
 
     if type(x) == str  :
 	try:
-	    return float(x)
+	    return ( float(x), None )
 	except ValueError:
 	    pass
 
@@ -130,19 +131,23 @@ def num(x) :
 		exit(1)
 
 	    if x == "stdin" :
-		return fits.open(xpa.xpa(target).get("fits", xpa.xpa.fp))[0].data
+	        hdu = fits.open(xpa.xpa(target).get("fits", xpa.xpa.fp))[0]
+		return ( hdu.data, hdu )
 
 	if x == "stdin" :
 	    try:
-	        x = fits.open(sys.stdin)[0].data
+	        hdu = fits.open(sys.stdin)[0]
+		x   = hdu.data
 	    except IOError:
 	        sys.stderr.write("Error opening fits from stdin.\n")
+		exit(1)
 
 	else:
 	    (file, extn) = extparse(x)
 
 	    try:
-		x = fits.open(file)[extn].data
+		hdu = fits.open(file)[extn]
+		x   = hdu.data
 
 		if x == None :
 		    print "imrpn: hdu has no data : " + x
@@ -152,7 +157,7 @@ def num(x) :
 		print "imrpn: cannot read file: " + x
 		exit(1)
 
-    return x
+    return ( x, hdu )
 
 def cat(file) : 						# Return the contents of a file.
     fp = open(file);  data = fp.read();  fp.close();
@@ -164,22 +169,37 @@ def macro(file): outer(cat(file).split())			# Run a file as input.
 def rpndef(name, func, signature) : 				# Import python code and define the new operators.
     vm.ops[name] = { "op" : func, "imm": 0, "signature": signature }
 
-__builtins__.num    = num					# Cast functions must be available in the new module
-__builtins__.any    = any					# so stuff them in __builtins__
+__builtins__.Num    = Num					# Cast functions must be available in the new module
+__builtins__.Any    = Any					# so stuff them in __builtins__
+__builtins__.Str    = Str
+__builtins__.Int    = Int
 __builtins__.rpndef = rpndef
 
 def pcode(file): __import__(file).init()
 
 def pydef(dentry): 						# Run a python def off the stack
     operands = []
+    header   = None
+
     for ( x, cast ) in zip(range(-len(dentry["signature"]), 0, 1)	# Pop each arg from the stack
 			 , dentry["signature"]): 			# in reverse order.
-	operands.append(cast(vm.stak.pop(x).value))			# Cast the stak value to the expected type.
+
+	top = vm.stak.pop(x)
+
+	( oper, head )  = cast(top.value)
+
+	operands.append(oper)					# Cast the stak value to the expected type.
+
+	if header == None : 					# The first operand that has an associated header labels the result.
+	    if head == None :
+		header = None ; # top.header
+	    else :
+	    	header = head
 
     result = dentry["op"](*operands)					# Make the call.
 
     if result != None :
-	vm.stak.append(Dot(value=result))
+	vm.stak.append(Dot(value=result, header=header))
 
 def inner(text): 						# The inner loop - threads the words of a colon def
     ipsave = vm.ip
@@ -353,68 +373,68 @@ def imstack(im, dim) :
 	raise Exception("stack dimension must be 1, 2, or 3")
 
 vm.ops = { 
-    "sin":     	{ "op": numpy.sin,	"imm" : 0, "signature": [num] },
-    "cos":     	{ "op": numpy.cos,	"imm" : 0, "signature": [num] },
-    "tan":     	{ "op": numpy.tan,	"imm" : 0, "signature": [num] },
-    "arctan":  	{ "op": numpy.arctan,	"imm" : 0, "signature": [num] },
-    "arctan2":  { "op": numpy.arctan2,	"imm" : 0, "signature": [num, num] },
-    "atan":  	{ "op": numpy.arctan,	"imm" : 0, "signature": [num] },
-    "atan2":    { "op": numpy.arctan2,	"imm" : 0, "signature": [num, num] },
-    "sqrt":    	{ "op": numpy.sqrt,	"imm" : 0, "signature": [num] },
-    "log":    	{ "op": numpy.log,	"imm" : 0, "signature": [num] },
-    "log10":   	{ "op": numpy.log10,	"imm" : 0, "signature": [num] },
-    "exp":    	{ "op": numpy.exp,	"imm" : 0, "signature": [num] },
+    "sin":     	{ "op": numpy.sin,	"imm" : 0, "signature": [Num] },
+    "cos":     	{ "op": numpy.cos,	"imm" : 0, "signature": [Num] },
+    "tan":     	{ "op": numpy.tan,	"imm" : 0, "signature": [Num] },
+    "arctan":  	{ "op": numpy.arctan,	"imm" : 0, "signature": [Num] },
+    "arctan2":  { "op": numpy.arctan2,	"imm" : 0, "signature": [Num, Num] },
+    "atan":  	{ "op": numpy.arctan,	"imm" : 0, "signature": [Num] },
+    "atan2":    { "op": numpy.arctan2,	"imm" : 0, "signature": [Num, Num] },
+    "sqrt":    	{ "op": numpy.sqrt,	"imm" : 0, "signature": [Num] },
+    "log":    	{ "op": numpy.log,	"imm" : 0, "signature": [Num] },
+    "log10":   	{ "op": numpy.log10,	"imm" : 0, "signature": [Num] },
+    "exp":    	{ "op": numpy.exp,	"imm" : 0, "signature": [Num] },
 
-    "abs":     	{ "op": abs,		"imm" : 0, "signature": [num]      },
-    "min":     	{ "op": min,		"imm" : 0, "signature": [num, num] },
-    "max":     	{ "op": max,		"imm" : 0, "signature": [num, num] },
+    "abs":     	{ "op": abs,		"imm" : 0, "signature": [Num]      },
+    "min":     	{ "op": min,		"imm" : 0, "signature": [Num, Num] },
+    "max":     	{ "op": max,		"imm" : 0, "signature": [Num, Num] },
 
-    "amin":    	{ "op": numpy.amin,	"imm" : 0, "signature": [num, Int] },
-    "amax":    	{ "op": numpy.amax,	"imm" : 0, "signature": [num, Int] },
-    "sum":    	{ "op": numpy.sum,	"imm" : 0, "signature": [num, Int] },
-    "prod":    	{ "op": numpy.prod,	"imm" : 0, "signature": [num, Int] },
-    "mean":    	{ "op": numpy.mean,	"imm" : 0, "signature": [num, Int] },
-    "median":   { "op": numpy.median,	"imm" : 0, "signature": [num, Int]},
-    "std":      { "op": numpy.std,	"imm" : 0, "signature": [num, Int]},
-    "var":      { "op": numpy.var,	"imm" : 0, "signature": [num, Int]},
+    "amin":    	{ "op": numpy.amin,	"imm" : 0, "signature": [Num, Int] },
+    "amax":    	{ "op": numpy.amax,	"imm" : 0, "signature": [Num, Int] },
+    "sum":    	{ "op": numpy.sum,	"imm" : 0, "signature": [Num, Int] },
+    "prod":    	{ "op": numpy.prod,	"imm" : 0, "signature": [Num, Int] },
+    "mean":    	{ "op": numpy.mean,	"imm" : 0, "signature": [Num, Int] },
+    "median":   { "op": numpy.median,	"imm" : 0, "signature": [Num, Int]},
+    "std":      { "op": numpy.std,	"imm" : 0, "signature": [Num, Int]},
+    "var":      { "op": numpy.var,	"imm" : 0, "signature": [Num, Int]},
 
-    "normal":  	{ "op": normal, 	"imm" : 0, "signature": [num, num, num]},
-    "poisson": 	{ "op": numpy.random.poisson,"imm" : 0, "signature": [num, num]},
+    "normal":  	{ "op": normal, 	"imm" : 0, "signature": [Num, Num, Num]},
+    "poisson": 	{ "op": numpy.random.poisson,"imm" : 0, "signature": [Num, Num]},
 
-    "shape":	{ "op": getshape,	"imm" : 0, "signature": [num] },
-    "shape!":	{ "op": setshape,	"imm" : 0, "signature": [num, num] },
+    "shape":	{ "op": getshape,	"imm" : 0, "signature": [Num] },
+    "shape!":	{ "op": setshape,	"imm" : 0, "signature": [Num, Num] },
 
-    "+": 	{ "op": operator.add,	"imm" : 0, "signature": [num, num] },
-    "-": 	{ "op": operator.sub,	"imm" : 0, "signature": [num, num] },
-    "*": 	{ "op": operator.mul,	"imm" : 0, "signature": [num, num] },
-    "/": 	{ "op": operator.div,	"imm" : 0, "signature": [num, num] },
-    "**": 	{ "op": operator.pow,	"imm" : 0, "signature": [num, num] },
-    "^": 	{ "op": operator.pow,	"imm" : 0, "signature": [num, num] },
+    "+": 	{ "op": operator.add,	"imm" : 0, "signature": [Num, Num] },
+    "-": 	{ "op": operator.sub,	"imm" : 0, "signature": [Num, Num] },
+    "*": 	{ "op": operator.mul,	"imm" : 0, "signature": [Num, Num] },
+    "/": 	{ "op": operator.div,	"imm" : 0, "signature": [Num, Num] },
+    "**": 	{ "op": operator.pow,	"imm" : 0, "signature": [Num, Num] },
+    "^": 	{ "op": operator.pow,	"imm" : 0, "signature": [Num, Num] },
 
-    "and": 	{ "op": operator.and_,	"imm" : 0, "signature": [num, num] },
-    "or": 	{ "op": operator.or_,	"imm" : 0, "signature": [num, num] },
-    "not": 	{ "op": operator.not_,	"imm" : 0, "signature": [num] },
+    "and": 	{ "op": operator.and_,	"imm" : 0, "signature": [Num, Num] },
+    "or": 	{ "op": operator.or_,	"imm" : 0, "signature": [Num, Num] },
+    "not": 	{ "op": operator.not_,	"imm" : 0, "signature": [Num] },
 
-    "dup":	{ "op": dup,            "imm" : 0, "signature": [any] },
-    "rot":	{ "op": rot,            "imm" : 0, "signature": [any, any, any] },
-    "drop":	{ "op": drop,           "imm" : 0, "signature": [any] },
-    "swap":	{ "op": swap,           "imm" : 0, "signature": [any, any] },
+    "dup":	{ "op": dup,            "imm" : 0, "signature": [Any] },
+    "rot":	{ "op": rot,            "imm" : 0, "signature": [Any, Any, Any] },
+    "drop":	{ "op": drop,           "imm" : 0, "signature": [Any] },
+    "swap":	{ "op": swap,           "imm" : 0, "signature": [Any, Any] },
 
-    ".":	{ "op": dot,            "imm" : 0, "signature": [any] },
+    ".":	{ "op": dot,            "imm" : 0, "signature": [Any] },
     "..":       { "op": dotdot,		"imm" : 1, "signature": [] },
 
-    "!":	{ "op": store,		"imm" : 0, "signature": [any, str] },
-    "@":	{ "op": fetch,		"imm" : 0, "signature": [str] },
+    "!":	{ "op": store,		"imm" : 0, "signature": [Any, Str] },
+    "@":	{ "op": fetch,		"imm" : 0, "signature": [Str] },
 
-    ".py":      { "op": pcode,		"imm" : 0, "signature": [str] },
-    ".rc":      { "op": macro,		"imm" : 0, "signature": [str] },
-    "python":   { "op": python,		"imm" : 0, "signature": [str] },
+    ".py":      { "op": pcode,		"imm" : 0, "signature": [Str] },
+    ".rc":      { "op": macro,		"imm" : 0, "signature": [Str] },
+    "python":   { "op": python,		"imm" : 0, "signature": [Str] },
     ":": 	{ "op": colon,		"imm" : 0, "signature": [] },
     ";": 	{ "op": semi,		"imm" : 1, "signature": [] },
     "\"": 	{ "op": quote,		"imm" : 1, "signature": [] },
 
     "(lit)": 	{ "op": lit, 		"imm" : 0, "signature": [] },
-    "(dotdot)":	{ "op": xdotdot, 	"imm" : 0, "signature": [any] },
+    "(dotdot)":	{ "op": xdotdot, 	"imm" : 0, "signature": [Any] },
 
     "if":    	{ "op": xif,            "imm" : 1, "signature": [] },
     "then":     { "op": xthen,          "imm" : 1, "signature": [] },
@@ -425,20 +445,20 @@ vm.ops = {
     "until":    { "op": xuntil,         "imm" : 1, "signature": [] },
 
     "(branch)": { "op": xbranch,        "imm" : 0, "signature": [] },
-    "(branch0)":{ "op": xbranch0,       "imm" : 0, "signature": [num] },
-    "(branch1)":{ "op": xbranch1,       "imm" : 0, "signature": [num] },
+    "(branch0)":{ "op": xbranch0,       "imm" : 0, "signature": [Num] },
+    "(branch1)":{ "op": xbranch1,       "imm" : 0, "signature": [Num] },
     "[":	{ "op": mkmark,		"imm" : 0, "signature": [] },
     "]":	{ "op": mklist,		"imm" : 0, "signature": [] },
 
 
     "(":	{ "op": comment,	"imm" : 1, "signature": [] },
 
-    "stack":    { "op": imstack,	"imm" : 0, "signature": [num, int] },
-    "[]": 	{ "op": pyslice,	"imm" : 0, "signature": [num, str] },
-    "array":    { "op": array,  	"imm" : 0, "signature": [num] },
+    "stack":    { "op": imstack,	"imm" : 0, "signature": [Num, Int] },
+    "[]": 	{ "op": pyslice,	"imm" : 0, "signature": [Num, Str] },
+    "array":    { "op": array,  	"imm" : 0, "signature": [Num] },
 
-    "list":	{ "op": list,		"imm" : 0, "signature": [any] },
-    "flat":	{ "op": flatten,	"imm" : 0, "signature": [any] },
+    "list":	{ "op": list,		"imm" : 0, "signature": [Any] },
+    "flat":	{ "op": flatten,	"imm" : 0, "signature": [Any] },
 }
 
 # Main script action

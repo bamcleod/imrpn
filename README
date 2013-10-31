@@ -27,8 +27,8 @@ Reductions :			:	( value, axis   --  result 	)
 
 Random distribution values 	:	
 
-    normal			: 	( center, scale, shape  --  result )
-    poission			: 	( lam, shape  	--  result 	)
+    normal			: 	( zero, width, shape  --  result )
+    poission			: 	( n, shape  	--  result 	)
 
 Stack operations :
             
