@@ -39,8 +39,8 @@ class Huh(Exception): pass
 class EOF(Exception): pass
 class BadEOF(Exception): pass
 
-dtype2bitpix = { 8: "u1", "int16": 16, "int32": 32, "float32": -32, "float64": -64 }
-bitpix2dtype = { 8: "u1", 16: "i2", 32: "i4", -32: "f4", -64: "f8" }
+dtype2bitpix = { 8: "u1", "int16": 16, "uint16": -16, "int32": 32, "int64": 64, "float32": -32, "float64": -64 }
+bitpix2dtype = { 8: "u1", 16: "i2", 32: "i4", 64: "i8", -32: "f4", -64: "f8" }
 
 class header(object) :
     def __init__(self, fp, primary=True, cards=None) :
@@ -275,6 +275,7 @@ class hdu(header) :
 	    self.data *= self.bscale
 
 	other.write("\0" * (self.databloks*2880 - self.databytes))
+
 
 def open(fp) :
     opened = 0

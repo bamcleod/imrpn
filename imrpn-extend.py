@@ -1,3 +1,3 @@
 
-def init()
+def init():
     pass

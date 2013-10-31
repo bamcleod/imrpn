@@ -3,6 +3,8 @@
 import os, sys, operator, numpy
 
 sys.path.insert(0, os.path.join(os.getenv("HOME"), ".imrpn"))
+sys.path.insert(0, ".imrpn")
+sys.path.insert(0, ".")
 
 import xpa, fits, dotable
 
@@ -17,8 +19,16 @@ vm.varib   = {} 						# Fetch and Store variables
 vm.primary = True
 
 								#
-def store(value, name): vm.varib[name] = value
-def fetch(name): return vm.varib[name]
+def store(value, name):
+    vm.varib[name] = value
+
+def fetch(name):
+    if type(name) == list :
+	data = num(vm.stak.pop().value)
+
+	return data[name]
+
+    return vm.varib[name]
 
 def drop(x): 	  pass 						# Standard stack ops
 def dup(x): 	  vm.stak.extend([Dot(value=x), Dot(value=x)]) 			#
@@ -51,7 +61,7 @@ def extparse(file, deffile="", defextn=0):			# Helper to parse FITS,extn
 
 	    extn = slice(start, ends)
 	else:
-	    extn  = int(x[1])
+	    extn  = x[1]
 
     else: 	     extn  = defextn
 
@@ -138,6 +148,11 @@ def Num(x) :
 
     if type(x) == str  :
 	try:
+	    return ( int(x), None )
+	except ValueError:
+	    pass
+
+	try:
 	    return ( float(x), None )
 	except ValueError:
 	    pass
@@ -146,7 +161,7 @@ def Num(x) :
 	    (target, frame) = extparse(x[4:], "ds9", 0)
 
 	    if ( frame != 0 ) :
-		xpa.xpa(target).set("frame " + str(frame))
+		xpa.xpa(target).set("frame " + frame)
 
 	    x = xpa.xpa(target).get("file").strip()
 
@@ -172,12 +187,30 @@ def Num(x) :
 	    try:
 		x = fits.open(file)
 
-		if type(extn) == int :  x = x[extn].data
-		else :
+		if type(extn) == list or type(extn) == slice:
 		    x = numpy.dstack([hdu.data for hdu in x[extn]])
+		else :
+		    found = 0
+
+		    try:
+			x = x[int(extn)].data
+		    except:
+			for hdu in x[1:]:
+			    try:
+				if hdu.EXTNAME == extn:
+				    found = 1
+				    break
+			    except IndexError:
+				pass
+			
+			if not found :
+			    print "imrpn: hdu has no EXTNAME : " + file + " " + extn
+			    exit(1)
+			else :
+			    x = hdu.data
 
 		if x == None :
-		    print "imrpn: hdu has no data : " + x
+		    print "imrpn: hdu has no data : " + file + " " + str(extn)
 		    exit(1)
 
 	    except IOError:
@@ -202,7 +235,8 @@ __builtins__.Str    = Str
 __builtins__.Int    = Int
 __builtins__.rpndef = rpndef
 
-def pcode(file): __import__(file).init()
+def pcode(file): 
+    __import__(file).init()
 
 def pydef(dentry): 						# Run a python def off the stack
     operands = []
@@ -364,12 +398,26 @@ def xbranch1(x):
 
 
 def zeros(x): 	    return numpy.zeros(x)
-def array(x, type): return numpy.zeros(x, type)
+def array(x, type): 
+    try:
+	if   int(type) ==  16 : type = "int16"
+	elif int(type) == -16 : type = "uint16"
+	elif int(type) ==  32 : type = "int32"
+	elif int(type) ==  64 : type = "int64"
+	elif int(type) == -32 : type = "float32"
+	elif int(type) == -64 : type = "float64"
+    except:
+	pass
+
+    if callable(getattr(x,"astype")):
+	return x.astype(type)
+    else:
+	return numpy.zeros(x, type)
+
 
 def pyslice(data, s):
     sx = []
     for dim in s :
-	print "DIM: ", dim
 	ss = []
 	for x in dim.split(":") :
 	    if x == '':
