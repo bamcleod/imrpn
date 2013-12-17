@@ -1,0 +1,9 @@
+
+Cache FITS file loading
+
+Track FITS headers w/data and use best header as template for output?
+
+
+Array fetch / store
+
+    ./imrpn.py [ 10 10 ] 16 array x ! 2 [ 1 1 ] x @ ! x @
