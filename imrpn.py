@@ -20,9 +20,21 @@ vm.primary = True
 
 								#
 def store(value, name):
+    if hasattr(name, "astype") and callable(getattr(name,"astype")):
+	index = vm.stak.pop().value
+
+	name[tuple(Num(value)[0])] = index
+
+	return
+
     vm.varib[name] = value
 
 def fetch(name):
+    if hasattr(name, "astype") and callable(getattr(name,"astype")):
+	indx = vm.stak.pop().value
+
+	return name[indx]
+
     if type(name) == list :
 	data = num(vm.stak.pop().value)
 
@@ -132,12 +144,6 @@ def dotdot() :
 
 def python(code) : return eval(code)				# Run python string from the stack.
  
-def Int(x):
-    if type(x) == str and x == "None" :
-	return None
-	
-    return int(x)
-
 def num(x): 
     try:
 	return int(x)
@@ -145,6 +151,12 @@ def num(x):
 	pass
 
     return float(x)
+
+def Int(x):
+    if type(x) == str and x == "None" :
+	return None
+	
+    return int(x)
 
 def Str(x): return  ( x, None )
 def Any(x): return  ( x, None )
