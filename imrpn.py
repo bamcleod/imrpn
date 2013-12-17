@@ -138,6 +138,14 @@ def Int(x):
 	
     return int(x)
 
+def num(x): 
+    try:
+	return int(x)
+    except ValueError:
+	pass
+
+    return float(x)
+
 def Str(x): return  ( x, None )
 def Any(x): return  ( x, None )
 def Num(x) :
@@ -409,7 +417,7 @@ def array(x, type):
     except:
 	pass
 
-    if callable(getattr(x,"astype")):
+    if hasattr(x, "astype") and callable(getattr(x,"astype")):
 	return x.astype(type)
     else:
 	return numpy.zeros(x, type)
