@@ -144,7 +144,7 @@ def Num(x) :
     hdu = None
 
     if type(x) == list :
-	return ( map(num, x), None )
+	return ( map(Num, x), None )
 
     if type(x) == str  :
 	try:
@@ -409,7 +409,7 @@ def array(x, type):
     except:
 	pass
 
-    if callable(getattr(x,"astype")):
+    if hasattr(x, "astype") and callable(getattr(x, "astype")):
 	return x.astype(type)
     else:
 	return numpy.zeros(x, type)
