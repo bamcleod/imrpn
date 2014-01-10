@@ -6,4 +6,10 @@ Track FITS headers w/data and use best header as template for output?
 
 Array fetch / store
 
-    ./imrpn.py [ 10 10 ] 16 array x ! 2 [ 1 1 ] x @ ! x @
+    ./imrpn.py [ 512 512 ] 16 array x ! 	\
+		10 [ 256 256 ] x @ ! x @	\
+		 2 [ 255 256 ] x @ ! x @	\
+		 2 [ 256 255 ] x @ ! x @	\
+		 8 [ 257 256 ] x @ ! x @	\
+		 8 [ 256 257 ] x @ ! x @	\
+	> ~/Desktop/dot.fits

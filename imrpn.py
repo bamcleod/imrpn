@@ -36,7 +36,7 @@ def fetch(name):
 	return name[indx]
 
     if type(name) == list :
-	data = num(vm.stak.pop().value)
+	data = Num(vm.stak.pop().value)[0]
 
 	return data[name]
 
