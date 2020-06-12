@@ -83,7 +83,7 @@ def dot(result):                                                # Generic output
     if type(result) == str and result[:4] == "ds9:" :           # Maybe push the result to ds9?
             (target, frame) = extparse(result[4:], "ds9", 0)
 
-            result = num(vm.stak.pop()).value
+            result = vm.stak.pop().value
 
             try:
                 if ( frame != 0 ) :
@@ -229,7 +229,7 @@ def Num(x) :
                         else :
                             x = hdu.data
 
-                if x == None :
+                if x is None :
                     print "imrpn: hdu has no data : " + file + " " + str(extn)
                     exit(1)
 
@@ -279,7 +279,7 @@ def pydef(dentry):                                              # Run a python d
 
     result = dentry["op"](*operands)                                    # Make the call.
 
-    if result != None :
+    if result is not None :
         vm.stak.append(Dot(value=result, header=header))
 
 def inner(text):                                                # The inner loop - threads the words of a colon def
