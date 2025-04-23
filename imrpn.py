@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3
 #
 import os, sys, operator, numpy
 
@@ -6,7 +6,9 @@ sys.path.insert(0, os.path.join(os.getenv("HOME"), ".imrpn"))
 sys.path.insert(0, ".imrpn")
 sys.path.insert(0, ".")
 
-import xpa, fits, dotable
+import xpa, dotable
+
+from astropy.io import fits
 
 Dot = dotable.Dotable
 
@@ -92,43 +94,49 @@ def dot(result):                                                # Generic output
                 fp = xpa.xpa(target).set("fits", xpa.xpa.fp)
 
             except TypeError:
-                print "imrpn cannot talk to ds9: " + target + "," + str(frame)
+                print ("imrpn cannot talk to ds9: " + target + "," + str(frame))
                 exit(1)
 
             try:
-                hdu = fits.hdu(result, vm.primary)
+                hdu = fits.PrimaryHDU(result)
+                #hdu = fits.hdu(result, vm.primary)
                 vm.primary = False
-            except fits.Huh:
-                print "imrpn: cannot convert to FITS: ", result
+            except:
+                print ("imrpn: cannot convert to FITS: ", result)
                 exit(1)
 
             try:
-                hdu.writeto(fp)
+                #hdu.writeto(fp)
+                hdul = fits.HDUList([hdu])
+                hdul.writeto(fp.buffer)
                 fp.close()
             except(ValueError, IOError):
-                print "imrpn cannot write to ds9: " + target + "," + str(frame), fp
+                print ("imrpn cannot write to ds9: " + target + "," + str(frame), fp)
                 exit(1)
 
     elif type(result) == list or type(result) == str or len(numpy.shape(result)) == 0:  # Just a scalar
-        print result
+        print (result)
 
     elif sys.stdout.isatty() :                                  # Last chance, write FITS to stdout?
         sys.stderr.write("Refuse to write image to a tty.\n")
-        print type(result)
-        print result.dtype
-        print result.shape
-        print result
+        print (type(result))
+        print (result.dtype)
+        print (result.shape)
+        print (result)
         
 
     else:
         try:
-            hdu = fits.hdu(result, vm.primary)
+            #hdu = fits.hdu(result, vm.primary)
+            hdu = fits.PrimaryHDU(data=result)
             vm.primary = False
-        except fits.Huh:
-            print "imrpn: cannot convert to FITS: ", result
+        except:
+            print ("imrpn: cannot convert to FITS: ", vm.primary, result)
             exit(1)
 
-        hdu.writeto(sys.stdout)
+        hdul = fits.HDUList([hdu])
+        hdul.writeto(sys.stdout.buffer)
+
 
 def xdotdot(op):
     while len(vm.stak) and len(vm.stak) >= len(op["signature"]) : pydef(op)
@@ -154,13 +162,14 @@ def num(x):
 
 def Int(x):
     if type(x) == str and x == "None" :
-        return None
-        
-    return int(x)
+        return ( None, None )
+	
+    return ( int(x), None )
 
 def Str(x): return  ( x, None )
 def Any(x): return  ( x, None )
 def Num(x) :
+
     hdu = None
 
     if type(x) == list :
@@ -186,7 +195,7 @@ def Num(x) :
             x = xpa.xpa(target).get("file").strip()
 
             if x == "" :
-                print "imrpn: cannot get file name from ds9: " + target + "," + str(frame)
+                print ("imrpn: cannot get file name from ds9: " + target + "," + str(frame))
                 exit(1)
 
             if x == "stdin" :
@@ -224,17 +233,17 @@ def Num(x) :
                                 pass
                         
                         if not found :
-                            print "imrpn: hdu has no EXTNAME : " + file + " " + extn
+                            print ("imrpn: hdu has no EXTNAME : " + file + " " + extn)
                             exit(1)
                         else :
                             x = hdu.data
 
                 if x is None :
-                    print "imrpn: hdu has no data : " + file + " " + str(extn)
+                    print ("imrpn: hdu has no data : " + file + " " + str(extn))
                     exit(1)
 
             except IOError:
-                print "imrpn: cannot read file: " + x
+                print ("imrpn: cannot read file: " + x)
                 exit(1)
 
     return ( x, hdu )
@@ -504,7 +513,7 @@ vm.ops = {
     "+":        { "op": operator.add,   "imm" : 0, "signature": [Num, Num] },
     "-":        { "op": operator.sub,   "imm" : 0, "signature": [Num, Num] },
     "*":        { "op": operator.mul,   "imm" : 0, "signature": [Num, Num] },
-    "/":        { "op": operator.div,   "imm" : 0, "signature": [Num, Num] },
+    "/":        { "op": operator.truediv,"imm" : 0, "signature": [Num, Num] },
     "**":       { "op": operator.pow,   "imm" : 0, "signature": [Num, Num] },
     "^":        { "op": operator.pow,   "imm" : 0, "signature": [Num, Num] },
 
@@ -587,7 +596,7 @@ for file in start :
     if os.path.exists(file) and os.path.isfile(file) : macro(file)
 
 if len(sys.argv) == 1:
-    print cat(os.path.join(Home, ".imrpn", "README"))
+    print (cat(os.path.join(Home, ".imrpn", "README")))
 else:
     outer(sys.argv[1:] + ["..", "."])                   # Evaluate the command line & Dump the stack.
 
